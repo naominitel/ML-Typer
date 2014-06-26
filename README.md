@@ -1,4 +1,4 @@
-### Simple ML typer
+### µλ: A simple ML-like typer
 
 This is a typer of a very simple purely functional ML-like language.
 The language supports :
@@ -21,11 +21,16 @@ frontend. Just compile with make and run it:
 
 ```
 make
-./typer
+./rtpl poly
 ```
 
+`poly` indicates that you want to use the polymorphic typer. Simpler typers
+are available under the names `simple` or `core`. (They should produce the
+same result ; they just use a different algorithm internally.)
+
 You can enter any expression directly on stdin, and terminate with
-double semi-colon or EOF (^D). The typer works on a single expression.
+double semi-colon or EOF (^D). The RTPL accepts either a simple expression,
+or a sequence of one or more toplevel definitions (using the `def` keyword).
 
 ### Syntax
 
@@ -44,7 +49,7 @@ a / b
 (a, b, c, d)
 ```
 
-##### Sum types
+##### Sum types (not implemented yet)
 
 ```ocaml
 Foo a
@@ -73,6 +78,12 @@ let pattern = expr in body
 
 ```ocaml
 match expr with
-| pattern1 -> expr1
-| pattern2 -> expr2
+    | pattern1 -> expr1
+    | pattern2 -> expr2
+```
+
+##### toplevel bindings
+
+```ocaml
+def pattern = expr
 ```
