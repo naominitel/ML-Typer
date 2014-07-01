@@ -12,9 +12,9 @@ let pat_infer sess pat =
     let (ty_pat, tenv) = Typers_core.pat_infer sess pat in
     (ty_pat, List.map (fun (str, ty) -> (str, `TSTy ty)) tenv)
 
-let infer sess env ast =
-    let bindings = Subst.empty () in
-    let rec aux env ast = match snd ast with
+let rec infer_aux bindings sess env ast =
+    let aux = infer_aux bindings sess in
+    match snd ast with
         | `Unit  -> `TUnit
         | `Cst _ -> `TInt
 
@@ -131,4 +131,16 @@ let infer sess env ast =
             Subst.unify bindings [(`TFunc (ty_arg, ty_ret), ty_func)] ;
             Subst.apply bindings ty_ret
 
-    in gen (aux env ast)
+
+let infer sess env ast =
+    let bindings = Subst.empty () in
+    gen (infer_aux bindings sess env ast)
+
+
+let def_infer sess env pat expr =
+    let bindings       = Subst.empty () in
+    let (ty_pat, nenv) = pat_infer sess pat in
+    let ty_expr        = infer_aux bindings sess (nenv @ env) expr in
+    Subst.unify bindings [(ty_pat, ty_expr)] ;
+    List.map (fun (str, `TSTy t) -> (str, gen (Subst.apply bindings t)))
+             nenv

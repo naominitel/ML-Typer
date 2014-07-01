@@ -125,3 +125,11 @@ let infer sess env ast =
     let alist = Types.Unif.unify equs in
     let substs = Types.Subst.from_alist alist in
     Types.Subst.apply substs ty
+
+
+let def_infer sess env pat expr =
+    let (ty_pat, nenv)  = pat_infer sess pat  in
+    let (ty_expr, equs) = infer_equs sess (nenv @ env) expr in
+    let alist = Types.Unif.unify ((ty_pat, ty_expr) :: equs) in
+    let substs = Types.Subst.from_alist alist in
+    List.map (fun (str, ty) -> (str, Types.Subst.apply substs ty)) nenv
