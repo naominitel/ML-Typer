@@ -11,17 +11,18 @@ let next_var: unit -> tvar =
         n := !n + 1 ;
         ret)
 
-(* 
+(*
  * the type of an expression may be either
  * a type variable or a concrete type
  *)
+
 type ty = [
     | `TUnit
     | `TInt
     | `TVar   of tvar
     | `TTuple of ty list
     | `TFunc  of ty * ty
-    | `TSum   of ctor list
+    | `TSum   of ctor list (* invariant : ctor list is supposed to be sorted *)
 ] and ctor = (string * ty)
 
 let open_ty (ty: [< ty]): [> ty] = match ty with
@@ -130,6 +131,21 @@ let rec inst sch = match sch with
  * TODO: annotate functions that uses it.
  *)
 type 'a type_env = (string * 'a) list
+
+(*
+ * Subtyping
+ *)
+
+let rec is_subtype ty1 ty2 = match (ty1, ty2) with
+  | ( _     , `TVar)                   -> true
+  | (`TUnit , `TUnit) | (`TInt, `TInt) -> true
+  | ( _     , `TUnit) | ( _   , `TInt) -> false
+  | (`TTuple l1, `TTuple l2) -> Utils.list_forall2 is_subtype l1 l2
+  | ( _        , `TTuple _ ) -> false
+  | (`TFunc (arg1, res1), `TFunc (arg2, res2)) -> (is_subtype res1 res2) && (is_subtype arg2 arg1)
+  | ( _                 , `TFunc _           ) -> false
+  | (`TSum l1, `TSum l2) -> failwith "TODO"
+  | ( _      , `TSum _ ) -> false
 
 (*
  * Unification algorithm

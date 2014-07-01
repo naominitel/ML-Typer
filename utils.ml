@@ -11,7 +11,9 @@ let string_of_list lst ?sep:(s=" ; ") tostr = match lst with
                           (fun acc e -> (Printf.sprintf "%s%s%s" acc s (tostr e)))
                           (tostr car) cdr)
 
-
+let list_forall2 f l1 l2 =
+    try List.for_all2 f l1 l2
+    with Invalid_argument _ -> false
 
 
 (* === Monads === *)
