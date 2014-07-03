@@ -112,8 +112,7 @@ let rec check_pat err ((sp, pat): err_pattern) : pattern Utils.Maybe.t =
         (check_pat err pat) >>= (fun p -> return (sp, `PatCtor (v, p)))
 
     | `PatTup pats        ->
-        (map_m (List.map (check_pat err) pats)) >>=
-            (fun lst -> return (sp, `PatTup lst))
+        map_m (check_pat err) pats >>= (fun lst -> return (sp, `PatTup lst))
 
     | `ParseError e       -> err sp e ; None
 
@@ -127,8 +126,7 @@ let rec check err ((sp, ast): err_ast) : ast option =
             (check err arg) >>= (fun a -> return (sp, `Ctor (v, a)))
 
         | `Tuple asts            ->
-            (map_m (List.map (check err) asts)) >>=
-                (fun lst -> return (sp, `Tuple lst))
+            map_m (check err) asts >>= (fun lst -> return (sp, `Tuple lst))
 
         | `If (ec, et, ef)       ->
             bind3 (check err ec) (check err et) (check err ef)
@@ -144,10 +142,10 @@ let rec check err ((sp, ast): err_ast) : ast option =
 
         | `Match (expr, arms)    ->
             bind2 (check err expr)
-                  (map_m (List.map (fun (p, a) ->
-                                        bind2 (check_pat err p) (check err a)
-                                              (fun p a -> return (p, a)))
-                         arms))
+                  (map_m (fun (p, a) ->
+                              bind2 (check_pat err p) (check err a)
+                                    (fun p a -> return (p, a)))
+                         arms)
                   (fun expr arms -> return (sp, `Match (expr, arms)))
 
         | `Apply (fn, arg)       ->

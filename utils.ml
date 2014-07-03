@@ -32,7 +32,8 @@ module type Monad = sig
     val map : ('a -> 'b) -> 'a t -> 'b t
     val bind2 : 'a t -> 'b t -> ('a -> 'b -> 'c t) -> 'c t
     val bind3 : 'a t -> 'b t -> 'c t -> ('a -> 'b -> 'c -> 'd t) -> 'd t
-    val map_m : 'a t list -> 'a list t
+    val map_m : ('a -> 'b t) -> 'a list -> 'b list t
+    val sequence : 'a t list -> 'a list t
 end
 
 
@@ -49,11 +50,13 @@ module MakeMonad (M : SimpleMonad) = struct
     let bind2 m_a m_b f     = m_a >>= (fun a -> m_b >>= (f a))
     let bind3 m_a m_b m_c f = m_a >>= (fun a -> bind2 m_b m_c (f a))
 
-    let map_m lstm =
+    let sequence lstm =
         let f m1 m2 =
             let g a b = return (a :: b) in
             bind2 m1 m2 g
         in List.fold_right f lstm (return [])
+
+    let map_m f lst = sequence (List.map f lst)
 end
 
 (* standard implementations *)
