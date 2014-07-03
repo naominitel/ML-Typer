@@ -178,32 +178,69 @@ type s_basic_ast = [
  * allowed in the corresponding language level
  *)
 
-let rec simple_pat (sp, pat) = (sp, match pat with
-    | (`PatUnit     as a)
-    | (`PatWildcard as a)
-    | (`PatCst _    as a)
-    | (`PatVar _    as a) -> a
-    |  `PatTup lst        -> `PatTup (List.map simple_pat lst)
-    | _                   -> failwith "invalid construction"
-)
+let rec simple_pat on_error (sp, pat) =
+    let open Utils.Maybe in
+    (match pat with
+        | (`PatUnit     as a)
+        | (`PatWildcard as a)
+        | (`PatCst _    as a)
+        | (`PatVar _    as a) -> return a
 
-let rec simple_ast ((sp, ast): ast) = (sp, match ast with
-    | (`Unit  as a)
-    | (`Cst _ as a)
-    | (`Var _ as a)            -> a
-    |  `Tuple lst              -> `Tuple (List.map simple_ast lst)
-    |  `If (ec, et, ef)        -> `If (simple_ast ec, simple_ast et, simple_ast ef)
-    |  `Fun (pat, expr)        -> `Fun (simple_pat pat, simple_ast expr)
-    |  `Let (pat, expr, body)  -> `Let (simple_pat pat, simple_ast expr, simple_ast body)
+        | `PatTup lst         ->
+            map_m (simple_pat on_error) lst >>= (fun l -> return (`PatTup l))
 
-    |  `Match (expr, arms)     ->
-         `Match (simple_ast expr,
-                 List.map (fun (p, e) -> (simple_pat p, simple_ast e)) arms)
+        | _                   ->
+            on_error sp "unsupported construction" ;
+            None
 
-    |  `Apply (fn, arg)        -> `Apply (simple_ast fn, simple_ast arg)
-    | `BinOp (op, opl, opr)    -> `BinOp (op, simple_ast opl, simple_ast opr)
-    |  _                       -> failwith "invalid construction"
-)
+    ) >>= (fun pat -> return (sp, pat))
+
+
+let rec simple_ast on_error ((sp, ast): ast) =
+    let open Utils.Maybe in
+    let simple_ast = simple_ast on_error in
+    let simple_pat = simple_pat on_error in
+    (match ast with
+        | (`Unit  as a)
+        | (`Cst _ as a)
+        | (`Var _ as a)          -> return a
+
+        | `Tuple lst             ->
+            map_m simple_ast lst >>= (fun l -> return (`Tuple l))
+
+        | `If (ec, et, ef)       ->
+            bind3 (simple_ast ec) (simple_ast et) (simple_ast ef)
+                  (fun ec et ef -> return (`If (ec, et, ef)))
+
+        | `Fun (pat, expr)       ->
+            bind2 (simple_pat pat) (simple_ast expr)
+                  (fun pat expr -> return (`Fun (pat, expr)))
+
+        | `Let (pat, expr, body) ->
+            bind3 (simple_pat pat) (simple_ast expr) (simple_ast body)
+                  (fun pat expr body -> return (`Let (pat, expr, body)))
+
+        | `Match (expr, arms)    ->
+            bind2 (simple_ast expr)
+                  (map_m (fun (p, e) ->
+                              bind2 (simple_pat p) (simple_ast e)
+                                    (fun p e -> return (p, e)))
+                         arms)
+                  (fun expr arms -> return (`Match (expr, arms)))
+
+        | `Apply (fn, arg)       ->
+            bind2 (simple_ast fn) (simple_ast arg)
+                  (fun fn arg -> return (`Apply (fn, arg)))
+
+        | `BinOp (op, opl, opr)  ->
+            bind2 (simple_ast opl) (simple_ast opr)
+                  (fun opl opr -> return (`BinOp (op, opl, opr)))
+
+        |  _                     ->
+            on_error sp "unsupported construction" ;
+            None
+
+    ) >>= (fun ast -> return (sp, ast))
 
 (* not-so-pretty-printing functions, for debug purposes *)
 

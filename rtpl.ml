@@ -30,11 +30,13 @@ let () =
                         ignore (
                             (Ast.check (Errors.span_err sess) ast) >>=
                                 (fun ast ->
-                                    let ast = Ast.simple_ast ast in
-                                    let sty = Typer.infer sess env ast in
-                                    Printf.printf "type: %s\n"
-                                                  (Types.sty_to_string sty) ;
-                                    None )) ;
+                                    Ast.simple_ast (Errors.span_err sess) ast >>=
+                                        (fun ast ->
+                                            let sty = Typer.infer sess env ast in
+                                            Printf.printf
+                                                "type: %s\n"
+                                                (Types.sty_to_string sty) ;
+                                            None ))) ;
                         iter env
 
                     | `Defs [] -> exit 0
@@ -43,10 +45,11 @@ let () =
                         let new_env =
                             (List.fold_left
                                 (fun local_env (pat, expr) ->
+                                     let err = Errors.span_err sess in
                                      bind3
                                          local_env
-                                         (Ast.check_pat (Errors.span_err sess) pat)
-                                         (Ast.check (Errors.span_err sess) expr)
+                                         (Ast.check_pat err pat)
+                                         (Ast.check err expr)
                                          (fun local_env pat expr ->
                                             (*
                                              * For now, we just tranform defs into
@@ -54,10 +57,15 @@ let () =
                                              * TODO: extract bindings to keep
                                              * environment
                                              *)
-                                            let ast = (Ast.simple_ast expr) in
-                                            let pat = (Ast.simple_pat pat) in
-                                            let nenv = Typer.def_infer sess (local_env @ env) pat ast in
-                                            return (nenv @ local_env)))
+                                            bind2
+                                                (Ast.simple_ast err expr)
+                                                (Ast.simple_pat err pat)
+                                                (fun ast pat ->
+                                                    let nenv = Typer.def_infer
+                                                                   sess
+                                                                   (local_env @ env)
+                                                                   pat ast in
+                                                    return (nenv @ local_env))))
                                 (return []) defs)
                         in (match new_env with
                                 | None         -> iter env
