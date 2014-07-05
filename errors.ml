@@ -3,6 +3,8 @@ open Session
 
 exception CompileFailure
 
+type callback = span -> string -> unit
+
 (* Display a pretty error message along with the errorneous piece of code *)
 let span_err sess sp msg =
     let (s, e) = sp in
