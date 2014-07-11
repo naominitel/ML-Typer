@@ -17,10 +17,14 @@ more and more complex.
 ### Usage
 
 The typer is written in OCaml, with OCamlLex and OcamlYacc for the
-frontend. Just compile with make and run it:
+frontend. It uses [Oasis](https://github.com/ocaml/oasis) for the build,
+which you may install through [OPAM](http://opam.ocaml.org/).
+Just compile with make and run it:
 
 ```
-make
+oasis setup
+ocaml setup.ml -configure
+ocaml setup.ml -build
 ./rtpl poly
 ```
 

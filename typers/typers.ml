@@ -24,19 +24,19 @@ end
 
 module Simple: GenTyper = struct
     include BasicTyper
-    include Typers_simple
+    include Simple
 end
 
 module Core: GenTyper = struct
     include BasicTyper
-    include Typers_core
+    include Core
 end
 
 module Poly: GenTyper = struct
     type ty      = Types.ty_sch
     type ast     = Ast.basic_ast
     type pattern = Ast.basic_pattern
-    include Typers_poly
+    include Poly
 
     let from_ast     = Ast.simple_ast
     let from_pat     = Ast.simple_pat

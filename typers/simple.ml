@@ -4,7 +4,7 @@ open Ast
 open Errors
 
 (* This didn't change from the previous algorithm *)
-let pat_infer = Typers_core.pat_infer
+let pat_infer = Core.pat_infer
 
 (*
  * infer_equss the type of an expression

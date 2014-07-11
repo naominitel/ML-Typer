@@ -9,7 +9,7 @@ open Types
  * a type scheme environment (that contains only concrete types)
  *)
 let pat_infer sess pat =
-    let (ty_pat, tenv) = Typers_core.pat_infer sess pat in
+    let (ty_pat, tenv) = Core.pat_infer sess pat in
     (ty_pat, List.map (fun (str, ty) -> (str, `TSTy ty)) tenv)
 
 let rec infer_aux bindings sess env ast =
