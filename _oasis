@@ -24,6 +24,7 @@ Library compiler
            Types
   InternalModules: Utils
   BuildTools: ocamlbuild
+  BuildDepends: batteries
 
 Library typers
   Path: typers/

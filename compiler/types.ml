@@ -1,3 +1,5 @@
+open Batteries
+
 (* Internal representation of types *)
 
 (* a type variable *)
@@ -140,7 +142,7 @@ let rec is_subtype ty1 ty2 = match (ty1, ty2) with
   | ( _     , `TVar)                   -> true
   | (`TUnit , `TUnit) | (`TInt, `TInt) -> true
   | ( _     , `TUnit) | ( _   , `TInt) -> false
-  | (`TTuple l1, `TTuple l2) -> Utils.list_forall2 is_subtype l1 l2
+  | (`TTuple l1, `TTuple l2) -> List.eq is_subtype l1 l2
   | ( _        , `TTuple _ ) -> false
   | (`TFunc (arg1, res1), `TFunc (arg2, res2)) -> (is_subtype res1 res2) && (is_subtype arg2 arg1)
   | ( _                 , `TFunc _           ) -> false
@@ -300,7 +302,7 @@ end = struct
                                    (x2, subst t1 x1 t2)) res) rest nlist
                 in merge substs (nlist @ nrest)
             with Not_found ->
-                ( Utils.hashtbl_map_inplace (subst ty1 v) substs ;
+                ( Hashtbl.map_inplace (fun _ -> subst ty1 v) substs ;
                   Hashtbl.add substs v ty1 ;
                   merge substs rest )
 
