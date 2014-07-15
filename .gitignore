@@ -8,6 +8,8 @@ lexer.ml
 parser.ml
 /_build
 /_tags
+/configure
+/Makefile
 /myocamlbuild.ml
 /rtpl.byte
 /setup.data

@@ -23,8 +23,8 @@ Just compile with make and run it:
 
 ```
 oasis setup
-ocaml setup.ml -configure
-ocaml setup.ml -build
+./configure
+make
 ./rtpl poly
 ```
 

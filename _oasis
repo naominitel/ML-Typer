@@ -1,5 +1,6 @@
 OASISFormat:  0.4
 OCamlVersion: >= 4.00
+Plugins:      DevFiles (0.4)
 Name:         ml-typer
 Version:      0.1
 Copyrights:   (C) 2014 The µλ authors
