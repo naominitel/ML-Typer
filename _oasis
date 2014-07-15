@@ -41,3 +41,10 @@ Executable rtpl
   BuildTools:   ocamlbuild
   MainIs:       rtpl.ml
   BuildDepends: compiler, typers
+
+Executable webapp
+  Path:         webapp/
+  BuildTools:   ocamlbuild, camlp4o
+  MainIs:       main.ml
+  BuildDepends: compiler, typers, js_of_ocaml.syntax, js_of_ocaml
+  Install:      false
