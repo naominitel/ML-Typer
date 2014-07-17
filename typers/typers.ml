@@ -5,8 +5,8 @@ module type GenTyper = sig
     type ast
     type pattern
 
-    val from_ast     : Errors.callback -> Ast.ast     -> ast     Utils.Maybe.t
-    val from_pat     : Errors.callback -> Ast.pattern -> pattern Utils.Maybe.t
+    val from_ast     : Errors.callback -> Ast.input_ast -> ast     Utils.Maybe.t
+    val from_pat     : Errors.callback -> Ast.input_pat -> pattern Utils.Maybe.t
     val infer        : Session.session -> ty Types.type_env -> ast     -> ty
     val def_infer    : Session.session -> ty Types.type_env -> pattern -> ast -> ty Types.type_env
     val ty_to_string : ty -> string
@@ -14,8 +14,8 @@ module type GenTyper = sig
 
 module BasicTyper = struct
     type ty      = Types.ty
-    type ast     = Ast.basic_ast
-    type pattern = Ast.basic_pattern
+    type ast     = Ast.basic_input_ast
+    type pattern = Ast.basic_input_pat
 
     let from_ast     = Ast.simple_ast
     let from_pat     = Ast.simple_pat
@@ -34,8 +34,8 @@ end
 
 module Poly: GenTyper = struct
     type ty      = Types.ty_sch
-    type ast     = Ast.basic_ast
-    type pattern = Ast.basic_pattern
+    type ast     = Ast.basic_input_ast
+    type pattern = Ast.basic_input_pat
     include Poly
 
     let from_ast     = Ast.simple_ast

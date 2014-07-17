@@ -15,7 +15,7 @@ open Types
  *)
 let pat_infer sess pat =
     let h = Hashtbl.create 0 in
-    let rec aux pat = match snd pat with
+    let rec aux (ty, pat) = match snd pat with
         | `PatUnit  -> (`TUnit, [])
         | `PatCst _ -> (`TInt, [])
 
@@ -51,7 +51,7 @@ let pat_infer sess pat =
  *  - a map of substitutions
  * TODO : handle unification errors !
  *)
-let rec infer_aux bindings sess env ast =
+let rec infer_aux bindings sess env (ty, ast) =
     let aux = infer_aux bindings sess in
     match snd ast with
         | `Unit  -> `TUnit

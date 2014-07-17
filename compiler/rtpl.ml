@@ -12,7 +12,6 @@ module MakeRTPL (Typer: Typers.GenTyper): RTPL = struct
         (try
             let (sess, (sp, defs)) = Session.sess_open () in
             match defs with
-                | `ParseError err -> Errors.span_err sess sp err ; iter env
                 | `Defs [] -> ()
 
                 | `Defs defs ->

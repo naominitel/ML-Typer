@@ -12,7 +12,7 @@ let pat_infer sess pat =
     let (ty_pat, tenv) = Core.pat_infer sess pat in
     (ty_pat, List.map (fun (str, ty) -> (str, `TSTy ty)) tenv)
 
-let rec infer_aux bindings sess env ast =
+let rec infer_aux bindings sess env (ty, ast) =
     let aux = infer_aux bindings sess in
     match snd ast with
         | `Unit  -> `TUnit

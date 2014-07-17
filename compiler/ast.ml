@@ -13,79 +13,40 @@ type bin_op = [
  * side of a let ... in form, or of a function
  * argument
  *)
-type s_pattern = [
+type 'a s_pat = [
     | `PatUnit
     | `PatWildcard
     | `PatCst     of int
     | `PatVar     of string
-    | `PatCtor    of string * pattern
-    | `PatTup     of pattern list
-] and pattern = s_pattern Codemap.spanned
-
-type s_basic_pattern = [
-    | `PatUnit
-    | `PatWildcard
-    | `PatCst     of int
-    | `PatVar     of string
-    | `PatTup     of basic_pattern list
-] and basic_pattern = s_basic_pattern Codemap.spanned
+    | `PatCtor    of string * 'a pat
+    | `PatTup     of 'a pat list
+] and 'a pat = ('a * ('a s_pat) Codemap.spanned)
 
 (* internal representation of the AST *)
 
-type s_ast = [
+type 'a s_ast = [
     | `Unit
     | `Cst     of int
     | `Var     of string
-    | `Ctor    of string * ast
-    | `Tuple   of ast list
-    | `If      of ast * ast * ast
-    | `Fun     of pattern * ast
-    | `Let     of pattern * ast * ast
-    | `Match   of ast * (pattern * ast) list
-    | `Apply   of ast * ast
-    | `BinOp   of bin_op * ast * ast
-] and ast  = s_ast Codemap.spanned
+    | `Ctor    of string * 'a ast
+    | `Tuple   of 'a ast list
+    | `If      of 'a ast * 'a ast * 'a ast
+    | `Fun     of 'a pat * 'a ast
+    | `Let     of 'a pat * 'a ast * 'a ast
+    | `Match   of 'a ast * ('a pat * 'a ast) list
+    | `Apply   of 'a ast * 'a ast
+    | `BinOp   of bin_op * 'a ast * 'a ast
+] and 'a ast  = ('a * ('a s_ast) Codemap.spanned)
 
-let rec expr_of_pat (sp, pat) = (sp, match pat with
-    | `PatUnit        -> `Unit
-    | `PatWildcard    -> failwith "fixme: this shouldn't exist"
-    | `PatCst c       -> `Cst c
-    | `PatVar v       -> `Var v
-    | `PatCtor (v, e) -> `Ctor (v, expr_of_pat e)
-    | `PatTup t       -> `Tuple (List.map expr_of_pat t))
-
-(* a possibly errorenous AST *)
-(* TODO: way too much ASTs *)
-
-type s_err_pattern = [
-    | `PatUnit
-    | `PatWildcard
-    | `PatCst     of int
-    | `PatVar     of string
-    | `PatCtor    of string * err_pattern
-    | `PatTup     of err_pattern list
-    | `ParseError of string
-] and err_pattern = s_err_pattern Codemap.spanned
-
-type s_err_ast = [
-    | `Unit
-    | `Cst        of int
-    | `Var        of string
-    | `Ctor       of string * err_ast
-    | `Tuple      of err_ast list
-    | `If         of err_ast * err_ast * err_ast
-    | `Fun        of err_pattern * err_ast
-    | `Let        of err_pattern * err_ast * err_ast
-    | `Match      of err_ast * (err_pattern * err_ast) list
-    | `Apply      of err_ast * err_ast
-    | `BinOp      of bin_op * err_ast * err_ast
-    | `ParseError of string
-] and err_ast  = s_err_ast Codemap.spanned
+type error_pat = [ `Unty | `Annot of Types.ty | `Error of string ] pat
+type error_ast = [ `Unty | `Annot of Types.ty | `Error of string ] ast
+type input_pat = [ `Unty | `Annot of Types.ty ] pat
+type input_ast = [ `Unty | `Annot of Types.ty ] ast
+type typed_ast = [ `Ty of Types.ty ] ast
 
 type defs = [
-    | `Defs of (err_pattern * err_ast) list
-    | `Expr of err_ast
-    | `ParseError of string
+    | `Defs of (error_pat * error_ast) list
+    | `Expr of error_ast
 ] Codemap.spanned
 
 (*
@@ -98,79 +59,94 @@ type defs = [
  * accordingly.
  * TODO: if only we had monads... implement in Utils?
  *)
-  
 
-let rec check_pat err ((sp, pat): err_pattern) : pattern Utils.Maybe.t =
-  let open Utils.Maybe in
-  match pat with
-    | (`PatUnit     as a)
-    | (`PatWildcard as a)
-    | (`PatCst _    as a)
-    | (`PatVar _    as a) -> return (sp, a)
+let rec check_pat err ((t, (sp, pat)): error_pat) : input_pat Utils.Maybe.t =
+    let open Utils.Maybe in
+    let aux () = match pat with
+        | (`PatUnit     as a)
+        | (`PatWildcard as a)
+        | (`PatCst _    as a)
+        | (`PatVar _    as a) -> return a
 
-    | `PatCtor (v, pat)   ->
-        (check_pat err pat) >>= (fun p -> return (sp, `PatCtor (v, p)))
+        | `PatCtor (v, pat) ->
+            (check_pat err pat) >>= (fun p -> return (`PatCtor (v, p)))
 
-    | `PatTup pats        ->
-        map_m (check_pat err) pats >>= (fun lst -> return (sp, `PatTup lst))
+        | `PatTup pats ->
+            map_m (check_pat err) pats >>=
+                (fun lst -> return (`PatTup lst))
+    in match t with
+        | `Error e -> err sp e ; None
+        | (`Annot _ | `Unty) as t ->
+            aux () >>= (fun p -> return (t, (sp, p)))
 
-    | `ParseError e       -> err sp e ; None
-
-let rec check err ((sp, ast): err_ast) : ast option =
-    let open Utils.Maybe in match ast with
+let rec check err ((t, (sp, ast)): error_ast) : input_ast option =
+    let open Utils.Maybe in
+    let aux () = match ast with
         | (`Unit  as a)
         | (`Cst _ as a)
-        | (`Var _ as a)          -> return (sp, a)
+        | (`Var _ as a)          -> return a
 
         | `Ctor (v, arg)         ->
-            (check err arg) >>= (fun a -> return (sp, `Ctor (v, a)))
+            (check err arg) >>= (fun a -> return (`Ctor (v, a)))
 
         | `Tuple asts            ->
-            map_m (check err) asts >>= (fun lst -> return (sp, `Tuple lst))
+            map_m (check err) asts >>= (fun lst -> return (`Tuple lst))
 
         | `If (ec, et, ef)       ->
             bind3 (check err ec) (check err et) (check err ef)
-                  (fun ec et ef -> return (sp, `If (ec, et, ef)))
+                  (fun ec et ef -> return (`If (ec, et, ef)))
 
         | `Fun (pat, expr)       ->
             bind2 (check_pat err pat) (check err expr)
-                  (fun p e -> return (sp, `Fun (p, e)))
+                  (fun p e -> return (`Fun (p, e)))
 
         | `Let (pat, expr, body) ->
             bind3 (check_pat err pat) (check err expr) (check err body)
-                  (fun p e b -> Some (sp, `Let (p, e, b)))
+                  (fun p e b -> Some (`Let (p, e, b)))
 
         | `Match (expr, arms)    ->
             bind2 (check err expr)
                   (map_m (fun (p, a) ->
-                              bind2 (check_pat err p) (check err a)
-                                    (fun p a -> return (p, a)))
-                         arms)
-                  (fun expr arms -> return (sp, `Match (expr, arms)))
+                               bind2 (check_pat err p) (check err a)
+                                     (fun p a -> return (p, a)))
+                          arms)
+                  (fun expr arms -> return (`Match (expr, arms)))
 
         | `Apply (fn, arg)       ->
             bind2 (check err fn) (check err arg)
-                  (fun f a -> return (sp, `Apply (f, a)))
+                  (fun f a -> return (`Apply (f, a)))
 
         | `BinOp (op, opl, opr)  ->
             bind2 (check err opl) (check err opr)
-                  (fun l r -> return (sp, `BinOp (op, l, r)))
+                  (fun l r -> return (`BinOp (op, l, r)))
+    in match t with
+        | `Error e -> err sp e ; None
+        | (`Annot _ | `Unty) as t ->
+            aux () >>= (fun a -> return (t, (sp, a)))
 
-        | `ParseError e          -> err sp e ; None
+type 'a s_basic_pat = [
+    | `PatUnit
+    | `PatWildcard
+    | `PatCst     of int
+    | `PatVar     of string
+    | `PatTup     of 'a basic_pat list
+] and 'a basic_pat = ('a * ('a s_basic_pat) Codemap.spanned)
 
-type s_basic_ast = [
+type 'a s_basic_ast = [
     | `Unit
     | `Cst     of int
     | `Var     of string
-    | `Tuple   of basic_ast list
-    | `If      of basic_ast * basic_ast * basic_ast
-    | `Fun     of basic_pattern * basic_ast
-    | `Let     of basic_pattern * basic_ast * basic_ast
-    | `Match   of basic_ast * (basic_pattern * basic_ast) list
-    | `Apply   of basic_ast * basic_ast
-    | `BinOp   of bin_op * basic_ast * basic_ast
-] and basic_ast  = s_basic_ast Codemap.spanned
+    | `Tuple   of 'a basic_ast list
+    | `If      of 'a basic_ast * 'a basic_ast * 'a basic_ast
+    | `Fun     of 'a basic_pat * 'a basic_ast
+    | `Let     of 'a basic_pat * 'a basic_ast * 'a basic_ast
+    | `Match   of 'a basic_ast * ('a basic_pat * 'a basic_ast) list
+    | `Apply   of 'a basic_ast * 'a basic_ast
+    | `BinOp   of bin_op * 'a basic_ast * 'a basic_ast
+] and 'a basic_ast  = ('a * ('a s_basic_ast) Codemap.spanned)
 
+type basic_input_pat = [ `Unty | `Annot of Types.ty ] basic_pat
+type basic_input_ast = [ `Unty | `Annot of Types.ty ] basic_ast
 
 (*
  * Those functions try to convert the AST into a more restricted type
@@ -178,9 +154,9 @@ type s_basic_ast = [
  * allowed in the corresponding language level
  *)
 
-let rec simple_pat on_error (sp, pat) =
+let rec simple_pat on_error ((ty, pat): 'a pat) =
     let open Utils.Maybe in
-    (match pat with
+    (match (snd pat) with
         | (`PatUnit     as a)
         | (`PatWildcard as a)
         | (`PatCst _    as a)
@@ -190,17 +166,17 @@ let rec simple_pat on_error (sp, pat) =
             map_m (simple_pat on_error) lst >>= (fun l -> return (`PatTup l))
 
         | _                   ->
-            on_error sp "unsupported construction" ;
+            on_error (fst pat) "unsupported construction" ;
             None
 
-    ) >>= (fun pat -> return (sp, pat))
+    ) >>= (fun p -> return (ty, (fst pat, p)))
 
 
-let rec simple_ast on_error ((sp, ast): ast) =
+let rec simple_ast on_error ((ty, ast): 'a ast) =
     let open Utils.Maybe in
     let simple_ast = simple_ast on_error in
     let simple_pat = simple_pat on_error in
-    (match ast with
+    (match (snd ast) with
         | (`Unit  as a)
         | (`Cst _ as a)
         | (`Var _ as a)          -> return a
@@ -237,10 +213,10 @@ let rec simple_ast on_error ((sp, ast): ast) =
                   (fun opl opr -> return (`BinOp (op, opl, opr)))
 
         |  _                     ->
-            on_error sp "unsupported construction" ;
+            on_error (fst ast) "unsupported construction" ;
             None
 
-    ) >>= (fun ast -> return (sp, ast))
+    ) >>= (fun a -> return (ty, (fst ast, a)))
 
 (* not-so-pretty-printing functions, for debug purposes *)
 

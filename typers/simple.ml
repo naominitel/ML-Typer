@@ -12,7 +12,7 @@ let pat_infer = Core.pat_infer
  *  - the infer_equsred type, that may be a type variable
  *  - an equation system with constraints on the infer_equsred types
  *)
-let rec infer_equs sess env ast = match snd ast with
+let rec infer_equs sess env (ty, ast) = match snd ast with
     | `Unit  -> (`TUnit, [])
     | `Cst _ -> (`TInt, [])
 
