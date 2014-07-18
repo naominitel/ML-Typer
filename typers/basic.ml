@@ -29,8 +29,8 @@ type 'a s_ast = [
     | `BinOp   of Ast.bin_op * 'a ast * 'a ast
 ] and 'a ast  = ('a * ('a s_ast) Codemap.spanned)
 
-type input_pat = [ `Unty | `Annot of Types.ty ] pat
-type input_ast = [ `Unty | `Annot of Types.ty ] ast
+type input_pat = [ `Unty ] pat
+type input_ast = [ `Unty ] ast
 
 (*
  * Those functions try to convert the AST into a more restricted type
@@ -38,9 +38,9 @@ type input_ast = [ `Unty | `Annot of Types.ty ] ast
  * allowed in the corresponding language level
  *)
 
-let rec from_pat on_error ((ty, pat): 'a Ast.pat): 'a pat Maybe.t =
+let rec from_pat on_error ((ty, (sp, pat)): Ast.input_pat): input_pat Maybe.t =
     let open Utils.Maybe in
-    (match (snd pat) with
+    let pat = match pat with
         | (`PatUnit     as a)
         | (`PatWildcard as a)
         | (`PatCst _    as a)
@@ -50,17 +50,19 @@ let rec from_pat on_error ((ty, pat): 'a Ast.pat): 'a pat Maybe.t =
             map_m (from_pat on_error) lst >>= (fun l -> return (`PatTup l))
 
         | _                   ->
-            on_error (fst pat) "unsupported construction" ;
+            on_error sp "unsupported construction" ;
             None
+    in match ty with
+        | `Annot _ ->
+            on_error sp "this typer does not allow explicit type annotations" ;
+            None
+        | `Unty -> pat >>= (fun p -> return (`Unty, (sp, p)))
 
-    ) >>= (fun p -> return (ty, (fst pat, p)))
-
-
-let rec from_ast on_error ((ty, ast): 'a Ast.ast): 'a ast Maybe.t =
+let rec from_ast on_error ((ty, (sp, ast)): Ast.input_ast): input_ast Maybe.t =
     let open Utils.Maybe in
     let from_ast = from_ast on_error in
     let from_pat = from_pat on_error in
-    (match (snd ast) with
+    let ast = match ast with
         | (`Unit  as a)
         | (`Cst _ as a)
         | (`Var _ as a)          -> return a
@@ -97,7 +99,10 @@ let rec from_ast on_error ((ty, ast): 'a Ast.ast): 'a ast Maybe.t =
                   (fun opl opr -> return (`BinOp (op, opl, opr)))
 
         |  _                     ->
-            on_error (fst ast) "unsupported construction" ;
+            on_error sp "unsupported construction" ;
             None
-
-    ) >>= (fun a -> return (ty, (fst ast, a)))
+    in match ty with
+        | `Annot _ ->
+            on_error sp "this typer does not allow explicit type annotations" ;
+            None
+        | `Unty -> ast >>= (fun a -> return (`Unty, (sp, a)))
