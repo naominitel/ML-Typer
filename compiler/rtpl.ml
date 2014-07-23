@@ -1,66 +1,64 @@
 (* Read-Type-Print-Loop *)
 
+open Codemap
+open Utils
+
 module type RTPL = sig
     val run: unit -> unit
 end
 
+exception EmptyInput
+
 module MakeRTPL (Typer: Typers.GenTyper): RTPL = struct
     let rec iter env =
-        let open Utils.Maybe in
-        Printf.printf "λ > " ;
+        let open Errors in
+        Printf.printf "µλ > " ;
         flush stdout ;
         (try
-            let (sess, (sp, defs)) = Session.sess_open () in
-            match defs with
-                | `Defs [] -> ()
+            let (sess, defs) = Session.sess_open () in
+            let res = bind
+                (fun defs -> match defs.d with
+                    | `Defs [] -> raise EmptyInput
 
-                | `Defs defs ->
-                    let new_env =
-                        (List.fold_left
+                    | `Defs defs ->
+                        List.fold_left
                             (fun local_env (pat, expr) ->
-                                let err = Errors.span_err sess in
-                                bind3
+                                map3
+                                    (fun local_env ast pat ->
+                                        let nenv = Typer.def_infer
+                                                       sess
+                                                       (local_env @ env)
+                                                       pat ast in
+                                        (nenv @ local_env))
                                     local_env
-                                    (Ast.check_pat err pat)
-                                    (Ast.check err expr)
-                                    (fun local_env pat expr ->
-                                        bind2
-                                            (Typer.from_ast err expr)
-                                            (Typer.from_pat err pat)
-                                            (fun ast pat ->
-                                                let nenv = Typer.def_infer
-                                                                sess
-                                                                (local_env @ env)
-                                                                pat ast in
-                                                return (nenv @ local_env))))
-                            (return []) defs)
-                    in (match new_env with
-                            | None         -> iter env
-                            | Some new_env ->
-                                List.iter
-                                    (fun (str, ty) ->
-                                        Printf.printf
-                                            "%s: %s\n" str
-                                            (Typer.ty_to_string ty))
-                                    new_env ;
-                                iter (new_env @ env))
+                                    (Typer.from_ast expr)
+                                    (Typer.from_pat pat))
+                            (Ok []) defs
 
-                | `Expr ast ->
-                    ignore (
-                        (Ast.check (Errors.span_err sess) ast) >>=
-                            (fun ast ->
-                                Typer.from_ast (Errors.span_err sess) ast >>=
-                                    (fun ast ->
-                                        let sty = Typer.infer sess env ast in
-                                        Printf.printf
-                                            "type: %s\n"
-                                            (Typer.ty_to_string sty) ;
-                                        None ))) ;
+                    | `Expr ast ->
+                        map (fun ast ->
+                                let sty = Typer.infer sess env ast in
+                                Printf.printf "type: %s\n"
+                                              (Typer.ty_to_string sty) ;
+                                [])
+                            (Typer.from_ast ast))
+                defs
+            in match res with
+                | Err errors ->
+                    LazyList.iter (Session.span_err sess) errors ;
                     iter env
-             with Errors.CompileFailure -> iter env)
+                | Ok new_env ->
+                    List.iter
+                        (fun (str, ty) ->
+                            Printf.printf "%s: %s\n" str (Typer.ty_to_string ty))
+                        new_env ;
+                        iter (new_env @ env)
+        with
+            | Session.CompileFailure -> iter env
+            | EmptyInput -> Printf.printf "Bye.\n")
 
     let run () =
-        Printf.printf "\t\tRead Type Print Loop version 0.1. %s typer.\n\n"
+        Printf.printf "\t\tµλ Read Type Print Loop version 0.1. %s typer.\n\n"
                       Sys.argv.(1) ;
         iter []
 end

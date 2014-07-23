@@ -39,4 +39,13 @@ type span = (pos * pos)
  * Ast remembers the span associated to each node
  * This type decorates an arbitrary type with a span
  *)
-type 's spanned = (span * 's)
+type 's spanned = {
+    sp: span ;
+    d: 's
+}
+
+type ('l, 'r) lr_spanned = {
+    sp: span ;
+    l: 'l ;
+    r: 'r
+}

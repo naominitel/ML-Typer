@@ -1,7 +1,8 @@
 (* typer for a simple ML-like pure functional language *)
 
 open Ast
-open Errors
+open Codemap
+open Session
 
 (* This didn't change from the previous algorithm *)
 let pat_infer = Core.pat_infer
@@ -12,7 +13,7 @@ let pat_infer = Core.pat_infer
  *  - the infer_equsred type, that may be a type variable
  *  - an equation system with constraints on the infer_equsred types
  *)
-let rec infer_equs sess env (ty, ast) = match snd ast with
+let rec infer_equs sess env ast = match ast.r with
     | `Unit  -> (`TUnit, [])
     | `Cst _ -> (`TInt, [])
 
@@ -20,7 +21,10 @@ let rec infer_equs sess env (ty, ast) = match snd ast with
         (* typing of a variable (lookup in the type environment) *)
         (try (List.assoc v env, [])
          with Not_found ->
-             span_fatal sess (fst ast) (Printf.sprintf "unbound variable %s" v))
+             span_fatal sess {
+                 sp = ast.sp ;
+                 d = (Printf.sprintf "unbound variable %s" v)
+             })
 
     | `Let (pat, expr, body) ->
         (*

@@ -1,7 +1,8 @@
 (* typer for a simple ML-like pure functional language *)
 
 open Ast
-open Errors
+open Codemap
+open Session
 open Types
 
 (*
@@ -15,7 +16,7 @@ open Types
  *)
 let pat_infer sess pat =
     let h = Hashtbl.create 0 in
-    let rec aux (ty, pat) = match snd pat with
+    let rec aux pat = match pat.r with
         | `PatUnit  -> (`TUnit, [])
         | `PatCst _ -> (`TInt, [])
 
@@ -25,9 +26,11 @@ let pat_infer sess pat =
         | `PatVar v ->
             if Hashtbl.mem h v then
                 (* shouldn't the error message highlight the whole pattern ? *)
-                span_fatal sess (fst pat)
-                           (Printf.sprintf "Variable %s is bound several \
-                                            times in this pattern" v)
+                span_fatal sess {
+                    sp = pat.sp ;
+                    d = (Printf.sprintf "Variable %s is bound several \
+                                           times in this pattern" v)
+                }
             else (
                 Hashtbl.add h v () ;
                 let ty = `TVar (next_var ()) in
@@ -51,9 +54,9 @@ let pat_infer sess pat =
  *  - a map of substitutions
  * TODO : handle unification errors !
  *)
-let rec infer_aux bindings sess env (ty, ast) =
+let rec infer_aux bindings sess env ast =
     let aux = infer_aux bindings sess in
-    match snd ast with
+    match ast.r with
         | `Unit  -> `TUnit
         | `Cst _ -> `TInt
 
@@ -62,7 +65,10 @@ let rec infer_aux bindings sess env (ty, ast) =
             (* + update env (TODO: lazy substitutions! *)
             (try Subst.apply bindings (List.assoc v env)
              with Not_found ->
-                 span_fatal sess (fst ast) (Printf.sprintf "unbound variable %s" v))
+                 span_fatal sess {
+                     sp = ast.sp ;
+                     d = (Printf.sprintf "unbound variable %s" v)
+                 })
 
         | `Let (pat, expr, body) ->
             (*

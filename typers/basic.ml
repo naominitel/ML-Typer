@@ -1,3 +1,5 @@
+open Codemap
+
 (*
  * Provides common definitions used by all `basic' typers (currently `simple',
  * `core' and `poly'). Those typers use a subset of the AST that allow only
@@ -6,17 +8,15 @@
  * basic AST, reporting unsupported constructions as errors, if any.
  *)
 
-module Maybe = Utils.Maybe
-
-type 'a s_pat = [
+type 'a pat = ('a, [
     | `PatUnit
     | `PatWildcard
     | `PatCst     of int
     | `PatVar     of string
     | `PatTup     of 'a pat list
-] and 'a pat = ('a * ('a s_pat) Codemap.spanned)
+]) Codemap.lr_spanned
 
-type 'a s_ast = [
+type 'a ast  = ('a, [
     | `Unit
     | `Cst     of int
     | `Var     of string
@@ -27,7 +27,7 @@ type 'a s_ast = [
     | `Match   of 'a ast * ('a pat * 'a ast) list
     | `Apply   of 'a ast * 'a ast
     | `BinOp   of Ast.bin_op * 'a ast * 'a ast
-] and 'a ast  = ('a * ('a s_ast) Codemap.spanned)
+]) Codemap.lr_spanned
 
 type input_pat = [ `Unty ] pat
 type input_ast = [ `Unty ] ast
@@ -38,71 +38,62 @@ type input_ast = [ `Unty ] ast
  * allowed in the corresponding language level
  *)
 
-let rec from_pat on_error ((ty, (sp, pat)): Ast.input_pat): input_pat Maybe.t =
-    let open Utils.Maybe in
-    let pat = match pat with
+let rec from_pat (s_pat: Ast.input_pat) : input_pat Errors.t =
+    let open Errors in
+    let pat = match s_pat.r with
         | (`PatUnit     as a)
         | (`PatWildcard as a)
         | (`PatCst _    as a)
-        | (`PatVar _    as a) -> return a
+        | (`PatVar _    as a) -> Ok a
 
-        | `PatTup lst         ->
-            map_m (from_pat on_error) lst >>= (fun l -> return (`PatTup l))
+        | `PatTup lst ->
+            map (fun l -> `PatTup l) (sequence (List.map from_pat lst))
 
-        | _                   ->
-            on_error sp "unsupported construction" ;
-            None
-    in match ty with
+        | _ -> new_err s_pat.sp "unsupported construction"
+    in match s_pat.l with
         | `Annot _ ->
-            on_error sp "this typer does not allow explicit type annotations" ;
-            None
-        | `Unty -> pat >>= (fun p -> return (`Unty, (sp, p)))
+            new_err s_pat.sp "this typer does not allow explicit type annotations"
+        | `Unty -> map (fun p -> { l = `Unty ; sp = s_pat.sp ; r = p }) pat
 
-let rec from_ast on_error ((ty, (sp, ast)): Ast.input_ast): input_ast Maybe.t =
-    let open Utils.Maybe in
-    let from_ast = from_ast on_error in
-    let from_pat = from_pat on_error in
-    let ast = match ast with
+let rec from_ast (s_ast: Ast.input_ast): input_ast Errors.t =
+    let open Errors in
+    let ast = match s_ast.r with
         | (`Unit  as a)
         | (`Cst _ as a)
-        | (`Var _ as a)          -> return a
+        | (`Var _ as a) -> Ok a
 
-        | `Tuple lst             ->
-            map_m from_ast lst >>= (fun l -> return (`Tuple l))
+        | `Tuple lst ->
+            map (fun l -> `Tuple l) (sequence (List.map from_ast lst))
 
-        | `If (ec, et, ef)       ->
-            bind3 (from_ast ec) (from_ast et) (from_ast ef)
-                  (fun ec et ef -> return (`If (ec, et, ef)))
+        | `If (ec, et, ef) ->
+            map3 (fun ec et ef -> `If (ec, et, ef))
+                 (from_ast ec) (from_ast et) (from_ast ef)
 
-        | `Fun (pat, expr)       ->
-            bind2 (from_pat pat) (from_ast expr)
-                  (fun pat expr -> return (`Fun (pat, expr)))
+        | `Fun (pat, expr) ->
+            map2 (fun pat expr -> `Fun (pat, expr))
+                 (from_pat pat) (from_ast expr)
 
         | `Let (pat, expr, body) ->
-            bind3 (from_pat pat) (from_ast expr) (from_ast body)
-                  (fun pat expr body -> return (`Let (pat, expr, body)))
+            map3 (fun pat expr body -> `Let (pat, expr, body))
+                 (from_pat pat) (from_ast expr) (from_ast body)
 
-        | `Match (expr, arms)    ->
-            bind2 (from_ast expr)
-                  (map_m (fun (p, e) ->
-                              bind2 (from_pat p) (from_ast e)
-                                    (fun p e -> return (p, e)))
-                         arms)
-                  (fun expr arms -> return (`Match (expr, arms)))
+        | `Match (expr, arms) ->
+            map2 (fun expr arms -> `Match (expr, arms))
+                 (from_ast expr)
+                 (sequence (List.map (fun (p, e) -> map2 (fun p e -> (p, e))
+                                                   (from_pat p) (from_ast e))
+                                     arms))
 
-        | `Apply (fn, arg)       ->
-            bind2 (from_ast fn) (from_ast arg)
-                  (fun fn arg -> return (`Apply (fn, arg)))
+        | `Apply (fn, arg) ->
+            map2 (fun fn arg -> `Apply (fn, arg))
+                 (from_ast fn) (from_ast arg)
 
-        | `BinOp (op, opl, opr)  ->
-            bind2 (from_ast opl) (from_ast opr)
-                  (fun opl opr -> return (`BinOp (op, opl, opr)))
+        | `BinOp (op, opl, opr) ->
+            map2 (fun opl opr -> `BinOp (op, opl, opr))
+                 (from_ast opl) (from_ast opr)
 
-        |  _                     ->
-            on_error sp "unsupported construction" ;
-            None
-    in match ty with
+        | _ -> new_err s_ast.sp "unsupported construction"
+    in match s_ast.l with
         | `Annot _ ->
-            on_error sp "this typer does not allow explicit type annotations" ;
-            None
-        | `Unty -> ast >>= (fun a -> return (`Unty, (sp, a)))
+            new_err s_ast.sp "this typer does not allow explicit type annotations"
+        | `Unty -> map (fun a -> { l = `Unty ; sp = s_ast.sp ; r = a }) ast

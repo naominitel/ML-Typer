@@ -1,7 +1,8 @@
 (* polymorphic typer for a simple ML-like pure functional language *)
 
 open Ast
-open Errors
+open Codemap
+open Session
 open Types
 
 (*
@@ -12,9 +13,9 @@ let pat_infer sess pat =
     let (ty_pat, tenv) = Core.pat_infer sess pat in
     (ty_pat, List.map (fun (str, ty) -> (str, `TSTy ty)) tenv)
 
-let rec infer_aux bindings sess env (ty, ast) =
+let rec infer_aux bindings sess env ast =
     let aux = infer_aux bindings sess in
-    match snd ast with
+    match ast.r with
         | `Unit  -> `TUnit
         | `Cst _ -> `TInt
 
@@ -23,7 +24,10 @@ let rec infer_aux bindings sess env (ty, ast) =
             (* + update env (TODO: lazy substitutions! *)
             (try Subst.apply bindings (inst (List.assoc v env))
              with Not_found ->
-                 span_fatal sess (fst ast) (Printf.sprintf "unbound variable %s" v))
+                 span_fatal sess {
+                     sp = ast.sp ;
+                     d = (Printf.sprintf "unbound variable %s" v)
+                 })
 
         | `Let (pat, expr, body) ->
             (*

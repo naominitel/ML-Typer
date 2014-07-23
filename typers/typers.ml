@@ -5,8 +5,8 @@ module type GenTyper = sig
     type input_ast
     type input_pat
 
-    val from_ast     : Errors.callback -> Ast.input_ast -> input_ast Utils.Maybe.t
-    val from_pat     : Errors.callback -> Ast.input_pat -> input_pat Utils.Maybe.t
+    val from_ast     : Ast.input_ast -> input_ast Errors.t
+    val from_pat     : Ast.input_pat -> input_pat Errors.t
     val infer        : Session.session -> ty Types.type_env -> input_ast -> ty
     val def_infer    : Session.session -> ty Types.type_env -> input_pat -> input_ast -> ty Types.type_env
     val ty_to_string : ty -> string
