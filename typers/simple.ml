@@ -58,10 +58,11 @@ let rec infer_equs sess env ast = match ast.r with
          *  - add constraint t2 = t3
          *  - add constraint t1 = int
          *)
-        let (ty_econd, sys_cond)   = infer_equs sess env econd  in
-        let (ty_etrue, sys_true)   = infer_equs sess env etrue  in
-        let (ty_efalse, sys_false) = infer_equs sess env efalse in
-        let sys = sys_cond @ sys_true @ sys_false in
+        let ty_econd  = infer_equs sess env econd  in
+        let ty_etrue  = infer_equs sess env etrue  in
+        let ty_efalse = infer_equs sess env efalse in
+        U.add_constraints [(ty_econd, return `TInt), (ty_etrue, ty_efalse)] ;
+        U.return ty_etrue
         (ty_etrue, (ty_econd, `TInt) :: (ty_etrue, ty_efalse) :: sys)
 
     | `Tuple lst ->

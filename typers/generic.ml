@@ -54,8 +54,8 @@ let pat_infer sess pat =
  *  - a map of substitutions
  * TODO : handle unification errors !
  *)
-let rec infer_aux bindings sess env ast =
-    let aux = infer_aux bindings sess in
+let infer sess unificator env ast =
+    let aux = infer sess unificator in
     match ast.r with
         | `Unit  -> `TUnit
         | `Cst _ -> `TInt
@@ -63,7 +63,7 @@ let rec infer_aux bindings sess env ast =
         | `Var v ->
             (* typing of a variable (lookup in the type environment) *)
             (* + update env (TODO: lazy substitutions! *)
-            (try Subst.apply bindings (List.assoc v env)
+            (try unificator#return (List.assoc v env)
              with Not_found ->
                  span_fatal sess {
                      sp = ast.sp ;
@@ -89,10 +89,10 @@ let rec infer_aux bindings sess env ast =
              * is sufficient to support recursive definition for now
              * the rest should be handled by the unification
              *)
-            let ty_expr        = aux (nenv @ env) expr in
-            Subst.unify bindings [(ty_pat, ty_expr)] ;
+            let ty_expr = aux (nenv @ env) expr in
+            unificator#add_constraints [(ty_pat, ty_expr)] ;
             let ty_body = aux (nenv @ env) body in
-            Subst.apply bindings ty_body
+            unificator#return ty_body
 
         | `Fun (pat, body) ->
             (*
@@ -103,7 +103,7 @@ let rec infer_aux bindings sess env ast =
              *)
             let (ty_pat, nenv) = pat_infer sess pat    in
             let ty_body        = aux (nenv @ env) body in
-            Subst.apply bindings (`TFunc (ty_pat, ty_body))
+            unificator#return (`TFunc (ty_pat, ty_body))
 
         | `If (econd, etrue, efalse) ->
             (*
@@ -115,15 +115,15 @@ let rec infer_aux bindings sess env ast =
             let ty_econd  = aux env econd  in
             let ty_etrue  = aux env etrue  in
             let ty_efalse = aux env efalse in
-            Subst.unify bindings [(ty_econd, `TInt) ; (ty_etrue, ty_efalse)] ;
-            Subst.apply bindings ty_etrue
+            unificator#add_constraints [(ty_econd, `TInt) ; (ty_etrue, ty_efalse)] ;
+            unificator#return ty_etrue
 
         | `Tuple lst ->
             (*
              * typing of a tuple
              * just collects the types and constraints of sub-expressions
              *)
-            Subst.apply bindings (`TTuple (List.map (aux env) lst))
+            unificator#return (`TTuple (List.map (aux env) lst))
 
         | `BinOp (_, opl, opr) ->
             (*
@@ -133,8 +133,8 @@ let rec infer_aux bindings sess env ast =
              *)
             let ty_opl = aux env opl in
             let ty_opr = aux env opr in
-            Subst.unify bindings [(ty_opl, `TInt) ; (ty_opr, `TInt)] ;
-            `TInt
+            unificator#add_constraints [(ty_opl, `TInt) ; (ty_opr, `TInt)] ;
+            unificator#return `TInt
 
         | `Match (expr, (car :: cdr)) ->
             (*
@@ -154,14 +154,15 @@ let rec infer_aux bindings sess env ast =
 
             let ty_expr                  = aux env expr in
             let (ty_pat_car, ty_arm_car) = type_arm car in
+            (* TODO: check if we could do this sequentially *)
             let sys = List.flatten
                           (List.map
                               (fun arm ->
                                   let (ty_pat, ty_arm) = type_arm arm in
                                   [(ty_pat_car, ty_pat); (ty_arm_car, ty_arm)])
                               cdr) in
-            Subst.unify bindings ((ty_pat_car, ty_expr) :: sys) ;
-            Subst.apply bindings ty_arm_car
+            unificator#add_constraints ((ty_pat_car, ty_expr) :: sys) ;
+            unificator#return ty_arm_car
 
         | `Match (_, []) -> failwith "ICE : empty patterns are not supposed to be."
 
@@ -176,14 +177,8 @@ let rec infer_aux bindings sess env ast =
             let ty_arg  = aux env arg  in
             let ty_func = aux env func in
             let ty_ret  = `TVar (next_var ()) in
-            Subst.unify bindings [(`TFunc (ty_arg, ty_ret), ty_func)] ;
-            Subst.apply bindings ty_ret
-
-
-let infer sess env ast =
-    let bindings = Subst.empty () in
-    infer_aux bindings sess env ast
-
+            unificator#add_constraints [(`TFunc (ty_arg, ty_ret), ty_func)] ;
+            unificator#return ty_ret
 
 let def_infer sess env pat expr =
     let bindings = Subst.empty () in
