@@ -31,8 +31,7 @@ Library typers
   Path: typers/
   Modules: Typers
   InternalModules: Poly,
-                   Core,
-                   Simple
+                   Generic
   BuildTools: ocamlbuild
   BuildDepends: compiler
   

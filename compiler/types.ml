@@ -321,3 +321,33 @@ end = struct
         List.iter (fun (v, ty) -> Hashtbl.add h v ty) alist ;
         h
 end
+
+module type Unificator = sig
+    type t
+
+    val make : unit -> t
+    val add_constraints : t -> Unif.equ list -> unit
+    val return : t -> ty -> ty
+    val get_result : t -> ty -> ty
+end
+
+module Late_unificator: Unificator = struct
+    type t = Unif.equ list ref
+
+    let make () = ref []
+    let add_constraints u = List.iter (fun e -> u := e :: !u)
+    let return _ ty = ty
+
+    let get_result u =
+        let alist = Unif.unify !u in
+        let substs = Subst.from_alist alist in
+        Subst.apply substs
+end
+
+module Substitutions: Unificator = struct
+    type t = Subst.t
+    let make = Subst.empty
+    let add_constraints = Subst.unify
+    let return = Subst.apply
+    let get_result _ ty = ty
+end

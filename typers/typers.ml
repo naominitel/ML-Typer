@@ -12,20 +12,12 @@ module type GenTyper = sig
     val ty_to_string : ty -> string
   end
 
-module Simple: GenTyper = struct
-    type ty = Types.ty
-    let ty_to_string = Types.ty_to_string
+module Generic: GenTyper = struct
+    type ty      = Types.ty_sch
+    let ty_to_string = Types.sty_to_string
 
     include Basic
-    include Simple
-end
-
-module Core: GenTyper = struct
-    type ty = Types.ty
-    let ty_to_string = Types.ty_to_string
-
-    include Basic
-    include Core
+    include Generic
 end
 
 module Poly: GenTyper = struct
