@@ -328,7 +328,7 @@ module type Unificator = sig
     val make : unit -> t
     val add_constraints : t -> Unif.equ list -> unit
     val return : t -> ty -> ty
-    val get_result : t -> ty -> ty
+    val get_result : t -> (string * ty) list -> (string * ty) list
 end
 
 module Late_unificator: Unificator = struct
@@ -341,7 +341,7 @@ module Late_unificator: Unificator = struct
     let get_result u =
         let alist = Unif.unify !u in
         let substs = Subst.from_alist alist in
-        Subst.apply substs
+        List.map (fun (s, t) -> (s, Subst.apply substs t))
 end
 
 module Substitutions: Unificator = struct
@@ -349,5 +349,5 @@ module Substitutions: Unificator = struct
     let make = Subst.empty
     let add_constraints = Subst.unify
     let return = Subst.apply
-    let get_result _ ty = ty
+    let get_result _ env = env
 end

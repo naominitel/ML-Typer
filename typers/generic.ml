@@ -54,9 +54,8 @@ let pat_infer sess pat =
  *  - a map of substitutions
  * TODO : handle unification errors !
  *)
-let rec infer (type u) sess unificator (module U: Unificator with type t = u) env ast =
-    let aux = infer sess unificator (val U) in
-    match ast.r with
+let infer (type u) (module U: Unificator with type t = u) (unificator: u) sess (env: Types.ty Types.type_env) (ast: Basic.input_ast) =
+    let rec aux env ast = match ast.r with
         | `Unit  -> `TUnit
         | `Cst _ -> `TInt
 
@@ -179,11 +178,11 @@ let rec infer (type u) sess unificator (module U: Unificator with type t = u) en
             let ty_ret  = `TVar (next_var ()) in
             U.add_constraints unificator [(`TFunc (ty_arg, ty_ret), ty_func)] ;
             U.return unificator ty_ret
+    in aux env ast
 
-let def_infer (module U: Unificator) sess env pat expr =
+let def_infer (module U: Unificator) sess (env: Types.ty Types.type_env) (pat: Basic.input_pat) (expr: Basic.input_ast) =
     let unificator = U.make () in
     let (ty_pat, nenv) = pat_infer sess pat in
-    let ty_expr        = infer_aux sess (module U) unificator (nenv @ env) expr in
+    let ty_expr        = infer (module U) unificator sess (nenv @ env) expr in
     U.add_constraints unificator [(ty_pat, ty_expr)] ;
-    U.get_result unificator ;
-    List.map (fun (str, t) -> (str, Subst.apply unificator t)) nenv
+    U.get_result unificator nenv

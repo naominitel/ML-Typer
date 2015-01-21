@@ -26,6 +26,7 @@ module MakeRTPL (Typer: Typers.GenTyper): RTPL = struct
                                 map3
                                     (fun local_env ast pat ->
                                         let nenv = Typer.def_infer
+                                                       (module Types.Substitutions) 
                                                        sess
                                                        (local_env @ env)
                                                        pat ast in
@@ -37,7 +38,7 @@ module MakeRTPL (Typer: Typers.GenTyper): RTPL = struct
 
                     | `Expr ast ->
                         map (fun ast ->
-                                let sty = Typer.infer sess env ast in
+                                let sty = Typer.infer (module Types.Substitutions) (Types.Substitutions.make ()) sess env ast in
                                 Printf.printf "type: %s\n"
                                               (Typer.ty_to_string sty) ;
                                 [])
@@ -68,9 +69,8 @@ let () =
         Printf.printf "Syntax: %s {simple,core,poly}\n" Sys.argv.(0)
     else (
         let module R = (val match Sys.argv.(1) with
-            | "simple" -> (module MakeRTPL (Typers.Simple) : RTPL)
-            | "core"   -> (module MakeRTPL (Typers.Core)   : RTPL)
-            | "poly"   -> (module MakeRTPL (Typers.Poly)   : RTPL)
+            | "simple" -> (module MakeRTPL (Typers.Generic) : RTPL)
+            | "poly"   -> (module MakeRTPL (Typers.Poly)    : RTPL)
             | _        -> failwith "unknown typing algorithm")
         in R.run ()
     )
