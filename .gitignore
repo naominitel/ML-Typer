@@ -1,12 +1,4 @@
-*.cmi
-*.cmo
-*.mldylib
-*.mli
-*.mllib
-*.swp
-lexer.ml
-parser.ml
 /_build
-/_tags
-/Makefile
-/rtpl.byte
+*.byte
+*.native
+*.swp

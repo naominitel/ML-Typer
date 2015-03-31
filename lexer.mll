@@ -82,11 +82,12 @@ rule token lexmap = parse
                         } ;
                         token lexmap lexbuf
                     }
-| id as str         { ID str }
+| id as str         { ID (Ident.intern str) }
 | '.'               { DOT }
-| '\'               { LAM }
-| '('               { LP }
-| ')'               { RP }
+| ':'               { COL }
+| '\\'              { LAMBDA }
+| '('               { OP }
+| ')'               { CL }
 | eof               { EOF }
 | ";;"              { EOF }
 | _ as c            { UNKNOWN c }

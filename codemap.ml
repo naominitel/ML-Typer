@@ -33,4 +33,9 @@ type pos = {
  * token or an non-terminal piece of code
  * Contains the beginning and the end of the region
  *)
-type span = (pos * pos)
+type span = (Lexing.position * Lexing.position)
+
+type 'a spanned = {
+    sp: span ;
+    d: 'a
+}
