@@ -1,13 +1,13 @@
 def map =
     fun f -> fun l ->
         if l = [] then []
-        else (f (fst l)) :: (map f (snd l))
+        else (f (hd l)) :: (map f (tl l))
 
-def _ =
+def a =
     let lst = [1 ; 2 ; 3] in
-    let _ = map (fun x -> print_int x) lst in
+    let a = map (fun x -> print_int x) lst in
 
     let lst = map (fun x -> x + 1 ) lst in
-    let _ = map (fun x -> print_int x) lst in
+    let a = map (fun x -> print_int x) lst in
 
     ()

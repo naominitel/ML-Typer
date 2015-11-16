@@ -75,6 +75,7 @@
              ("else",  ELSE);
              ("fun",   FUN);
              ("let",   LET);
+             ("rec",   REC);
              ("in",    IN);
              ("match", MATCH);
              ("with",  WITH);

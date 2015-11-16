@@ -1,48 +1,19 @@
-type const =
-  | CInt of int
-  | CBool of bool
-
-type term =
-  | Var of string
-  | App of term * term
-  | Abs of string * term
-  | Let of string * term * term
-  | Const of const
-
-type ty =
-    | TConst of string
-    | TVar of var
-    | TApp of ty * ty
-
-and var = var_descr Union_find.point
-
-and var_descr = {
-    mutable structure: ty option ;
-    mutable rank: int ;
-    name: string
-}
-
-let arrow = TConst "->"
-
-let function_type t1 t2 =
-    TApp ((TApp (arrow, t1)), t2)
-
 type ty_sch =
-  | Forall of var list * constr * ty
+    | Forall of Types.var list * constr * Types.ty
 
 and constr =
     | CBool of bool
-    | CApp of string * ty list
+    | CApp of Ident.t * Types.ty list
     | CAnd of constr * constr
-    | CExists of var list * constr
-    | CDef of string * ty_sch * constr
-    | CInstance of string * ty
+    | CExists of Types.var list * constr
+    | CDef of Ident.t * ty_sch * constr
+    | CInstance of Ident.t * Codemap.span * Types.ty
     | CDump
 
 let sch ty =
     Forall ([], CBool true, ty)
 
-let is_subtype = "="
+let is_subtype = Ident.intern "="
 
 let is_instance sch ty =
     let Forall(v, c, t) = sch in
@@ -55,44 +26,93 @@ let has_instance sch =
 let letin var sch constr =
     CDef (var, sch, constr)
 
-let fresh_ty_var =
-    let next = ref 0 in
-    fun () ->
-        let name = Printf.sprintf "α%d" !next in
-        incr next ;
-        Union_find.fresh {
-            structure = None ;
-            name = name ;
-            rank = 0
-        }
+let curry f args =
+    List.fold_left (fun acc t -> Types.TApp (acc, t)) f args
 
-let t_int = TConst "int"
-let t_bool = TConst "bool"
+let tuple_type =
+    let tuple_constructors = Hashtbl.create 100 in
+    fun n ->
+        try Hashtbl.find tuple_constructors n
+        with Not_found -> begin
+            let id = Types.TConst (Ident.intern @@ Printf.sprintf "tuple%d" n) in
+            Hashtbl.add tuple_constructors n id ; id
+        end
 
-let rec infer term ty = match term with
-    | Const (CInt _) -> CApp (is_subtype, [t_int ; ty])
-    | Const (CBool _) -> CApp (is_subtype, [t_bool ; ty])
-    | Var x -> CInstance (x, ty)
-    | Abs (x, t) ->
-        let x1 = fresh_ty_var () in
-        let x2 = fresh_ty_var () in
-        let constr_body = infer t (TVar x2) in
-        CExists ([x1 ; x2], CAnd (CDef (x, sch (TVar x1), constr_body),
-                                  CApp (is_subtype, [function_type (TVar x1) (TVar x2) ; ty])))
-    | Let (z, e, t) ->
-        let x = fresh_ty_var () in
-        letin z (Forall ([x], infer e (TVar x), TVar x)) (infer t ty)
-    | App (f, a) ->
-        let x2 = fresh_ty_var () in
-        CExists ([x2], CAnd (infer f (function_type (TVar x2) ty),
-                             infer a (TVar x2)))
+(* TODO: handle patterns. there are two ways to do it, one that implies making the
+   constraints terms accept some kind of pattern somehow, on the implies desugaring
+   them during typing *)
 
-type def = Def of string * term
-type prog = def list
+let rec infer term ty = match snd term with
+    | `Unit -> CApp (is_subtype, [Types.t_unit ; ty])
+    | `Cst _ -> CApp (is_subtype, [Types.t_int ; ty])
+    | `Var v -> CInstance (v, fst term, ty)
+    | `Tuple t ->
+        let (vars, types, constr, len) =
+            List.fold_right
+                (fun e (vars, types, constr, i) ->
+                     let x = Types.fresh_ty_var () in
+                     (x :: vars, (Types.TVar x) :: types,
+                      CAnd (constr, infer e (Types.TVar x)), i + 1))
+                t ([], [], CBool true, 0)
+        in
 
-let infer_prog p =
-    List.fold_right
-        (fun (Def (v, t)) acc ->
-             let x = fresh_ty_var () in
-             letin v (Forall ([x], infer t (TVar x), TVar x)) acc)
-        p CDump
+        let ctor = tuple_type len in
+        CExists (vars, CAnd (constr, CApp (is_subtype, [ty ; curry ctor types])))
+    | `List l ->
+        let x = Types.fresh_ty_var () in
+        let constr =
+            List.fold_left
+                (fun constr e -> CAnd (constr, infer e (Types.TVar x)))
+                (CBool true) l
+        in
+
+        CExists ([x], CAnd (constr,
+                          CApp (is_subtype, [ty ; Types.TApp (Types.t_list, Types.TVar x)])))
+    | `If (ec, et, ef) ->
+        CAnd (infer ec (Types.t_bool), CAnd (infer et ty, infer ef ty))
+    | `Fun (x, t) ->
+        let x = match snd x with
+            | `PatVar v -> v
+            | _ -> failwith "patterns are not supported by HM(X)"
+        in
+        let x1 = Types.fresh_ty_var () in
+        let x2 = Types.fresh_ty_var () in
+        let constr_body = infer t (Types.TVar x2) in
+        CExists ([x1 ; x2], CAnd (CDef (x, sch (Types.TVar x1), constr_body),
+                                  CApp (is_subtype, [Types.function_type (Types.TVar x1) (Types.TVar x2) ; ty])))
+    | `Let (isrec, z, e, t) -> infer_binding isrec z e (infer t ty)
+    | `Apply (f, a) ->
+        let x2 = Types.fresh_ty_var () in
+        CExists ([x2], CAnd (infer f (Types.function_type (Types.TVar x2) ty),
+                             infer a (Types.TVar x2)))
+    | `BinOp (op, e1, e2) ->
+        begin match op with
+            | `Plus | `Minus | `Mult | `Div ->
+                CAnd (CAnd (infer e1 Types.t_int, infer e2 Types.t_int),
+                      CApp (is_subtype, [ty ; Types.t_int]))
+            | `Eq ->
+                let x = Types.fresh_ty_var () in
+                CAnd (CAnd (infer e1 (Types.TVar x), infer e2 (Types.TVar x)),
+                      CApp (is_subtype, [ty ; Types.t_bool]))
+            | `Cons ->
+                let x = Types.fresh_ty_var () in
+                let t = Types.TApp (Types.t_list, Types.TVar x) in
+                CExists ([x], CAnd (CAnd (infer e1 (Types.TVar x), infer e2 t),
+                      CApp (is_subtype, [t ; ty])))
+        end
+    | `Match _ -> failwith "patterns are not supported by HM(X)"
+
+and infer_binding isrec pat expr constr =
+    let var = match snd pat with
+        | `PatVar v -> v
+        | _ -> failwith "patterns are not supported by HM(X)"
+    in
+
+    let x = Types.fresh_ty_var () in
+
+    let inner = if isrec then
+        letin var (Forall ([], CBool true, Types.TVar x)) (infer expr (Types.TVar x))
+     else infer expr (Types.TVar x)
+    in letin var (Forall ([x], inner, Types.TVar x)) constr
+
+let infer_def p e = infer_binding true p e CDump

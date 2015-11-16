@@ -1,7 +1,7 @@
 type t = string
 
 let dummy_id = "#gensym#"
-let gensym () = String.copy dummy_id
+let gensym () = Bytes.copy dummy_id
 
 let show ident = ident
 

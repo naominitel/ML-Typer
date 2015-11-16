@@ -21,20 +21,23 @@ let rec rtpl env =
                                 (Ast.check err expr)
                                 (fun local_env pat expr ->
                                     let nenv = Typer.def_infer
-                                                    sess (local_env @ env)
+                                                    sess local_env
                                                     pat expr in
-                                    return (nenv @ local_env)))
-                        (return []) defs)
+                                    return nenv))
+                        (return env) defs)
                 in (match new_env with
                         | None         -> rtpl env
                         | Some new_env ->
-                            List.iter
-                                (fun (id, ty) ->
+                            let rec iter l = match l with
+                                | [] -> ()
+                                | l when l == env -> ()
+                                | ((id, ty) :: l) ->
                                     Printf.printf
                                         "%s: %s\n" (Ident.show id)
-                                        (Types.sty_to_string ty))
-                                new_env ;
-                            rtpl (new_env @ env))
+                                        (Printer.show_sch ty) ;
+                                    iter l
+                            in iter new_env ;
+                            rtpl new_env)
 
             | `Expr ast ->
                 ignore (
@@ -43,10 +46,10 @@ let rec rtpl env =
                             let sty = Typer.infer sess env ast in
                             Printf.printf
                                 "type: %s\n"
-                                (Types.sty_to_string sty) ;
+                                (Printer.show_sch (Hmx.sch sty)) ;
                             None )) ;
                 rtpl env
          with Errors.CompileFailure -> rtpl env)
 
-let run init_ty_env () =
+let run init_ty_env =
     Printf.printf "\t\tRead Type Print Loop version 0.1. \n\n" ; rtpl init_ty_env

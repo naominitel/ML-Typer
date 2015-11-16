@@ -76,13 +76,13 @@ arith:
     ;
 
 term:
-    | term MULT factor              { (range 1 3, `BinOp (`Mult, $1, $3)) }
-    | term DIV factor               { (range 1 3, `BinOp (`Div, $1, $3)) }
+    | term MULT apply               { (range 1 3, `BinOp (`Mult, $1, $3)) }
+    | term DIV apply                { (range 1 3, `BinOp (`Div, $1, $3)) }
     | apply                         { $1 }
     ;
 
 apply:
-    | expr factor                   { (range 1 2, `Apply ($1, $2)) }
+    | apply factor                  { (range 1 2, `Apply ($1, $2)) }
     | factor                        { $1 }
     ;
 

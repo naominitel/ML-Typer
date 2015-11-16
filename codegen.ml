@@ -573,8 +573,8 @@ module Primitives = struct
              * codegen currently assumes a function in the standard environment
              * is an ML closure
              *)
-            (intern "fst",       codegen_prim (make_ext_function md "ml_fst" 1)) ;
-            (intern "snd",       codegen_prim (make_ext_function md "ml_snd" 1)) ;
+            (intern "hd",        codegen_prim (make_ext_function md "ml_fst" 1)) ;
+            (intern "tl",        codegen_prim (make_ext_function md "ml_snd" 1)) ;
             (intern "print_int", codegen_prim (make_ext_function md "ml_print_int" 1)) ;
 
             (gensym (), codegen_prim (make_ext_function md "ml_alloc"  1)) ;

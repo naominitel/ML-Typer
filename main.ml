@@ -1,15 +1,3 @@
-(*
- * FIXME: should be linked to codegen somehow. and should probably be
- * elsewhere
- *)
-let init_ty_env = [
-    (Ident.intern "fst", let v = Types.next_var () in
-                         Types.gen (`TFunc (`TList (`TVar v), `TVar v))) ;
-    (Ident.intern "snd", let v = Types.next_var () in
-                         Types.gen (`TFunc (`TList (`TVar v), `TList (`TVar v)))) ;
-    (Ident.intern "print_int", `TSTy (`TFunc (`TInt, `TUnit)))
-]
-
 let compile_and_save path =
     let (sess, (sp, defs)) = Session.sess_open ~file:path () in
     match defs with
@@ -37,10 +25,10 @@ let compile_and_save path =
                                 let nenv = Typer.def_infer sess env pat expr in
                                 Maybe.return @@
                                     ((true,
-                                     Codegen.from_pat pat,
-                                     Codegen.from_ast expr)
-                                    :: acc, nenv @ env)))
-                    (Maybe.return ([], init_ty_env)) defs
+                                      Codegen.from_pat pat,
+                                      Codegen.from_ast expr)
+                                     :: acc, nenv @ env)))
+                    (Maybe.return ([], Typer.init_ty_env)) defs
 
             in begin match defs with
                 | Some (defs, _) ->
@@ -62,5 +50,5 @@ let () =
                 | `Ok -> exit 0
                 | `Err -> exit 1
             end
-        | [] -> Rtpl.run init_ty_env ()
+        | [] -> Rtpl.run Typer.init_ty_env
         | _ -> Printf.fprintf stderr "usage: %s [FILE]\n" pname ; exit 1
