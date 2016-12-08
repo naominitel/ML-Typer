@@ -1,5 +1,5 @@
 (*
- * Lexer for a simple language
+ * Lexer for a simple ML-like language
  * see parser.mly for a more detailed description
  * of the supported features
  *)
@@ -65,9 +65,26 @@
         lexmap.offset <- lexmap.offset + count ;
         count
 
+    (* The keywords of the language *)
+
+    let keywords = Hashtbl.create 0
+    let () =
+        List.iter (fun (kwd, tok) -> Hashtbl.add keywords kwd tok)
+            [("if",    IF);
+             ("then",  THEN);
+             ("else",  ELSE);
+             ("fun",   FUN);
+             ("let",   LET);
+             ("in",    IN);
+             ("match", MATCH);
+             ("with",  WITH);
+             ("def",   DEF)]
+
 }
 
-let id     = ['A'-'Z''a'-'z''_''0'-'9']+
+let id     = ['a'-'z']['A'-'Z''a'-'z''_''0'-'9']*
+let ctor   = ['A'-'Z']['A'-'Z''a'-'z''_''0'-'9']*
+let intcst = ['0'-'9']+
 
 rule token lexmap = parse
 | [' ' '\t']        { token lexmap lexbuf }
@@ -82,12 +99,25 @@ rule token lexmap = parse
                         } ;
                         token lexmap lexbuf
                     }
-| id as str         { ID (Ident.intern str) }
-| '.'               { DOT }
-| ':'               { COL }
-| '\\'              { LAMBDA }
+| id as str         { try Hashtbl.find keywords str
+                      with Not_found -> ID (Ident.intern str) }
+| ctor as str       { CTOR (Ident.intern str) }
+| intcst as i       { INT (int_of_string i) }
 | '('               { OP }
 | ')'               { CL }
+| '['               { BROP }
+| ']'               { BRCL }
+| '='               { EQ }
+| ','               { COMMA }
+| ';'               { SEMI }
+| '|'               { PIPE }
+| "->"              { ARR }
+| '_'               { USCO }
+| '+'               { PLUS }
+| '-'               { MINUS }
+| '*'               { MULT }
+| '/'               { DIV }
+| "::"              { CONS }
 | eof               { EOF }
 | ";;"              { EOF }
 | _ as c            { UNKNOWN c }

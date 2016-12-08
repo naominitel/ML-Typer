@@ -36,6 +36,8 @@ type pos = {
 type span = (Lexing.position * Lexing.position)
 
 type 'a spanned = {
-    sp: span ;
+    sp: span option ;
     d: 'a
 }
+
+let dummy_spanned item = { sp = None ; d = item }

@@ -2,8 +2,11 @@ module type S = sig
     type ty
 
     val show : ty -> string
+    val from_ast : ('ast Ast.ast as 'ast) -> ty
 
-    val from_ast : (('ast Ast.ast) as 'ast) -> ty
+    val primitives : Codegen.primitive list
+
+    val run_typer : ty Ast.ast -> ty
 end
 
 module MakeAst(Typer: S) = struct

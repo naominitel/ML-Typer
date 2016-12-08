@@ -1,22 +1,28 @@
+(*
 module DummyTyper: Typer.S = struct
     type ty = unit
 
     let from_ast _ = ()
     let show _ = "()"
-end
 
-module DummyAst = Typer.MakeAst(DummyTyper)
+    let primitives = [
+        Primitives.if_ ;
+    ] @ Primitives.basic_constants
+end
+*)
+
+module DummyAst = Typer.MakeAst(Stlc)
 
 let rec iter env =
     Printf.printf "µλ > " ;
     flush stdout ;
-    (*(try*)
+
     let (sess, ast) = Session.sess_open () in
-         (*with Errors.CompileFailure -> iter env)*)
     match ast with
         | Some ast ->
             let ast = DummyAst.from_frontend_ast ast in
-            print_endline @@ DummyAst.show ast ;
+            let ty = Stlc.run_typer ast in
+            Printf.printf "- : %s = %s\n" (Stlc.show ty) (DummyAst.show ast) ;
             iter env
         | None -> ()
 
