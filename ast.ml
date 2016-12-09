@@ -2,6 +2,8 @@
 
 (* a binary arithmetic operator *)
 type bin_op = [
+    | `Eq
+    | `Cons
     | `Plus
     | `Minus
     | `Mult
@@ -17,8 +19,7 @@ type s_pattern = [
     | `PatUnit
     | `PatWildcard
     | `PatCst     of int
-    | `PatVar     of string
-    | `PatCtor    of string * pattern
+    | `PatVar     of Ident.t
     | `PatTup     of pattern list
 ] and pattern = s_pattern Codemap.spanned
 
@@ -26,7 +27,7 @@ type s_basic_pattern = [
     | `PatUnit
     | `PatWildcard
     | `PatCst     of int
-    | `PatVar     of string
+    | `PatVar     of Ident.t
     | `PatTup     of basic_pattern list
 ] and basic_pattern = s_basic_pattern Codemap.spanned
 
@@ -35,12 +36,12 @@ type s_basic_pattern = [
 type s_ast = [
     | `Unit
     | `Cst     of int
-    | `Var     of string
-    | `Ctor    of string * ast
+    | `Var     of Ident.t
     | `Tuple   of ast list
+    | `List    of ast list
     | `If      of ast * ast * ast
     | `Fun     of pattern * ast
-    | `Let     of pattern * ast * ast
+    | `Let     of bool * pattern * ast * ast
     | `Match   of ast * (pattern * ast) list
     | `Apply   of ast * ast
     | `BinOp   of bin_op * ast * ast
@@ -51,7 +52,6 @@ let rec expr_of_pat (sp, pat) = (sp, match pat with
     | `PatWildcard    -> failwith "fixme: this shouldn't exist"
     | `PatCst c       -> `Cst c
     | `PatVar v       -> `Var v
-    | `PatCtor (v, e) -> `Ctor (v, expr_of_pat e)
     | `PatTup t       -> `Tuple (List.map expr_of_pat t))
 
 (* a possibly errorenous AST *)
@@ -61,8 +61,7 @@ type s_err_pattern = [
     | `PatUnit
     | `PatWildcard
     | `PatCst     of int
-    | `PatVar     of string
-    | `PatCtor    of string * err_pattern
+    | `PatVar     of Ident.t
     | `PatTup     of err_pattern list
     | `ParseError of string
 ] and err_pattern = s_err_pattern Codemap.spanned
@@ -70,12 +69,12 @@ type s_err_pattern = [
 type s_err_ast = [
     | `Unit
     | `Cst        of int
-    | `Var        of string
-    | `Ctor       of string * err_ast
+    | `Var        of Ident.t
     | `Tuple      of err_ast list
+    | `List       of err_ast list
     | `If         of err_ast * err_ast * err_ast
     | `Fun        of err_pattern * err_ast
-    | `Let        of err_pattern * err_ast * err_ast
+    | `Let        of bool * err_pattern * err_ast * err_ast
     | `Match      of err_ast * (err_pattern * err_ast) list
     | `Apply      of err_ast * err_ast
     | `BinOp      of bin_op * err_ast * err_ast
@@ -108,9 +107,6 @@ let rec check_pat err ((sp, pat): err_pattern) : pattern Utils.Maybe.t =
     | (`PatCst _    as a)
     | (`PatVar _    as a) -> return (sp, a)
 
-    | `PatCtor (v, pat)   ->
-        (check_pat err pat) >>= (fun p -> return (sp, `PatCtor (v, p)))
-
     | `PatTup pats        ->
         map_m (check_pat err) pats >>= (fun lst -> return (sp, `PatTup lst))
 
@@ -122,11 +118,11 @@ let rec check err ((sp, ast): err_ast) : ast option =
         | (`Cst _ as a)
         | (`Var _ as a)          -> return (sp, a)
 
-        | `Ctor (v, arg)         ->
-            (check err arg) >>= (fun a -> return (sp, `Ctor (v, a)))
-
         | `Tuple asts            ->
             map_m (check err) asts >>= (fun lst -> return (sp, `Tuple lst))
+
+        | `List asts             ->
+            map_m (check err) asts >>= (fun lst -> return (sp, `List lst))
 
         | `If (ec, et, ef)       ->
             bind3 (check err ec) (check err et) (check err ef)
@@ -136,9 +132,9 @@ let rec check err ((sp, ast): err_ast) : ast option =
             bind2 (check_pat err pat) (check err expr)
                   (fun p e -> return (sp, `Fun (p, e)))
 
-        | `Let (pat, expr, body) ->
+        | `Let (isrec, pat, expr, body) ->
             bind3 (check_pat err pat) (check err expr) (check err body)
-                  (fun p e b -> Some (sp, `Let (p, e, b)))
+                  (fun p e b -> Some (sp, `Let (isrec, p, e, b)))
 
         | `Match (expr, arms)    ->
             bind2 (check err expr)
@@ -158,90 +154,6 @@ let rec check err ((sp, ast): err_ast) : ast option =
 
         | `ParseError e          -> err sp e ; None
 
-type s_basic_ast = [
-    | `Unit
-    | `Cst     of int
-    | `Var     of string
-    | `Tuple   of basic_ast list
-    | `If      of basic_ast * basic_ast * basic_ast
-    | `Fun     of basic_pattern * basic_ast
-    | `Let     of basic_pattern * basic_ast * basic_ast
-    | `Match   of basic_ast * (basic_pattern * basic_ast) list
-    | `Apply   of basic_ast * basic_ast
-    | `BinOp   of bin_op * basic_ast * basic_ast
-] and basic_ast  = s_basic_ast Codemap.spanned
-
-
-(*
- * Those functions try to convert the AST into a more restricted type
- * and report an error if they find a construction that is not
- * allowed in the corresponding language level
- *)
-
-let rec simple_pat on_error (sp, pat) =
-    let open Utils.Maybe in
-    (match pat with
-        | (`PatUnit     as a)
-        | (`PatWildcard as a)
-        | (`PatCst _    as a)
-        | (`PatVar _    as a) -> return a
-
-        | `PatTup lst         ->
-            map_m (simple_pat on_error) lst >>= (fun l -> return (`PatTup l))
-
-        | _                   ->
-            on_error sp "unsupported construction" ;
-            None
-
-    ) >>= (fun pat -> return (sp, pat))
-
-
-let rec simple_ast on_error ((sp, ast): ast) =
-    let open Utils.Maybe in
-    let simple_ast = simple_ast on_error in
-    let simple_pat = simple_pat on_error in
-    (match ast with
-        | (`Unit  as a)
-        | (`Cst _ as a)
-        | (`Var _ as a)          -> return a
-
-        | `Tuple lst             ->
-            map_m simple_ast lst >>= (fun l -> return (`Tuple l))
-
-        | `If (ec, et, ef)       ->
-            bind3 (simple_ast ec) (simple_ast et) (simple_ast ef)
-                  (fun ec et ef -> return (`If (ec, et, ef)))
-
-        | `Fun (pat, expr)       ->
-            bind2 (simple_pat pat) (simple_ast expr)
-                  (fun pat expr -> return (`Fun (pat, expr)))
-
-        | `Let (pat, expr, body) ->
-            bind3 (simple_pat pat) (simple_ast expr) (simple_ast body)
-                  (fun pat expr body -> return (`Let (pat, expr, body)))
-
-        | `Match (expr, arms)    ->
-            bind2 (simple_ast expr)
-                  (map_m (fun (p, e) ->
-                              bind2 (simple_pat p) (simple_ast e)
-                                    (fun p e -> return (p, e)))
-                         arms)
-                  (fun expr arms -> return (`Match (expr, arms)))
-
-        | `Apply (fn, arg)       ->
-            bind2 (simple_ast fn) (simple_ast arg)
-                  (fun fn arg -> return (`Apply (fn, arg)))
-
-        | `BinOp (op, opl, opr)  ->
-            bind2 (simple_ast opl) (simple_ast opr)
-                  (fun opl opr -> return (`BinOp (op, opl, opr)))
-
-        |  _                     ->
-            on_error sp "unsupported construction" ;
-            None
-
-    ) >>= (fun ast -> return (sp, ast))
-
 (* not-so-pretty-printing functions, for debug purposes *)
 
 let binop_to_string op = match op with
@@ -257,8 +169,7 @@ let rec pat_to_string pat = match (snd pat) with
     | `PatUnit            -> "(unit)"
     | `PatWildcard        -> "_"
     | `PatCst i           -> sprintf "(%s)" (string_of_int i)
-    | `PatVar v           -> sprintf "(%s)" v
-    | `PatCtor (str, arg) -> sprintf "(%s %s)" str (pat_to_string arg)
+    | `PatVar v           -> sprintf "(%s)" (Ident.show v)
     | `PatTup tup         -> sprintf "(%s)" (Utils.string_of_list tup ~sep:", "
                                                                   pat_to_string)
 
@@ -266,9 +177,10 @@ let rec pat_to_string pat = match (snd pat) with
 let rec ast_to_string ast = match (snd ast) with
     | `Unit               -> "(unit)"
     | `Cst i              -> sprintf "(%s)" (string_of_int i)
-    | `Var v              -> sprintf "(%s)" v
-    | `Ctor (str, ast)    -> sprintf "(%s %s)" str (ast_to_string ast)
+    | `Var v              -> sprintf "(%s)" (Ident.show v)
     | `Tuple tup          -> sprintf "(%s)" (Utils.string_of_list tup ~sep:", "
+                                                                  ast_to_string)
+    | `List  lst          -> sprintf "[%s]" (Utils.string_of_list lst ~sep:"; "
                                                                   ast_to_string)
 
     | `If (e1, e2, e3)    ->
@@ -278,8 +190,9 @@ let rec ast_to_string ast = match (snd ast) with
     | `Fun (pat, expr)    ->
         sprintf "(fun %s -> %s)" (pat_to_string pat) (ast_to_string expr)
 
-    | `Let (pat, e1, e2)  ->
-        sprintf "(let %s = %s in %s)"
+    | `Let (isrec, pat, e1, e2)  ->
+        sprintf "(let %s%s = %s in %s)"
+                (if isrec then "rec " else "")
                 (pat_to_string pat) (ast_to_string e1) (ast_to_string e2)
 
     | `Match (expr, arms) ->

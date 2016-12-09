@@ -70,7 +70,7 @@
     let keywords = Hashtbl.create 0
     let () =
         List.iter (fun (kwd, tok) -> Hashtbl.add keywords kwd tok)
-            [("ifz",   IF);
+            [("if",    IF);
              ("then",  THEN);
              ("else",  ELSE);
              ("fun",   FUN);
@@ -100,13 +100,16 @@ rule token lexmap = parse
                         token lexmap lexbuf
                     }
 | id as str         { try Hashtbl.find keywords str
-                      with Not_found -> ID str }
-| ctor as str       { CTOR str }
+                      with Not_found -> ID (Ident.intern str) }
+| ctor as str       { CTOR (Ident.intern str) }
 | intcst as i       { INT (int_of_string i) }
 | '('               { OP }
 | ')'               { CL }
+| '['               { BROP }
+| ']'               { BRCL }
 | '='               { EQ }
 | ','               { COMMA }
+| ';'               { SEMI }
 | '|'               { PIPE }
 | "->"              { ARR }
 | '_'               { USCO }
@@ -114,6 +117,7 @@ rule token lexmap = parse
 | '-'               { MINUS }
 | '*'               { MULT }
 | '/'               { DIV }
+| "::"              { CONS }
 | eof               { EOF }
 | ";;"              { EOF }
 | _ as c            { UNKNOWN c }

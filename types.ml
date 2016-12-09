@@ -21,8 +21,10 @@ let next_var: unit -> tvar =
 type ty = [
     | `TUnit
     | `TInt
+    | `TBool
     | `TVar   of tvar
     | `TTuple of ty list
+    | `TList  of ty
     | `TFunc  of ty * ty
     | `TSum   of ctor list (* invariant : ctor list is supposed to be sorted *)
 ] and ctor = (string * ty)
@@ -33,8 +35,9 @@ let open_ty (ty: [< ty]): [> ty] = match ty with
 (* type pretty-printing *)
 
 let rec ty_to_string (ty: [< ty]) = match ty with
-    | `TUnit                    -> "*unit*" ;
-    | `TInt                     -> "int" ;
+    | `TUnit                    -> "*unit*"
+    | `TInt                     -> "int"
+    | `TBool                    -> "bool"
     | `TVar v                   -> Printf.sprintf "α_%d" v
     | `TTuple []                -> failwith "empty tuple"
 
@@ -44,6 +47,8 @@ let rec ty_to_string (ty: [< ty]) = match ty with
                                                      "%s, %s" res
                                                      (ty_to_string ty)))
                                   (ty_to_string car) cdr)
+
+    | `TList t                  -> Printf.sprintf "%s list" (ty_to_string t)
 
     | `TFunc (arg, res)         ->
           Printf.sprintf "%s -> %s" (ty_to_string arg) (ty_to_string res)
@@ -68,9 +73,10 @@ let rec sty_to_string sty = match sty with
  * (substitution is quite trivial as there are no cature problems)
  *)
 let rec subst t1 x1 (t: [< ty]) = match t with
-    | `TUnit | `TInt    -> t
+    | `TUnit | `TInt | `TBool   -> t
     | `TVar v           -> if v = x1 then t1 else t
     | `TTuple l         -> `TTuple (List.map (subst t1 x1) l)
+    | `TList t          -> `TList (subst t1 x1 t)
     | `TFunc (arg, res) -> `TFunc (subst t1 x1 arg, subst t1 x1 res)
     | `TSum l           -> `TSum (List.map (fun (c, ty) -> (c, subst t1 x1 ty)) l)
 
@@ -96,11 +102,14 @@ module VarSet = Set.Make (struct
 let rec ty_vars (ty: [< ty]) = match ty with
     | `TUnit  -> VarSet.empty
     | `TInt   -> VarSet.empty
+    | `TBool  -> VarSet.empty
     | `TVar v -> VarSet.singleton v
 
     | `TTuple lst ->
         List.fold_left (fun acc t -> VarSet.union acc (ty_vars t))
                        VarSet.empty lst
+
+    | `TList l -> ty_vars l
 
     | `TFunc (arg, ret) -> VarSet.union (ty_vars arg) (ty_vars ret)
 
@@ -140,10 +149,12 @@ type 'a type_env = (string * 'a) list
 
 let rec is_subtype ty1 ty2 = match (ty1, ty2) with
   | ( _     , `TVar)                   -> true
-  | (`TUnit , `TUnit) | (`TInt, `TInt) -> true
-  | ( _     , `TUnit) | ( _   , `TInt) -> false
+  | (`TUnit , `TUnit) | (`TInt, `TInt) | (`TBool, `TBool) -> true
+  | ( _     , `TUnit) | ( _   , `TInt) | ( _    , `TBool) -> false
   | (`TTuple l1, `TTuple l2) -> List.eq is_subtype l1 l2
   | ( _        , `TTuple _ ) -> false
+  | (`TList t1,  `TList t2)  -> is_subtype t1 t2
+  | (_,          `TList _)   -> false
   | (`TFunc (arg1, res1), `TFunc (arg2, res2)) -> (is_subtype res1 res2) && (is_subtype arg2 arg1)
   | ( _                 , `TFunc _           ) -> false
   | (`TSum l1, `TSum l2) -> failwith "TODO"
@@ -171,9 +182,10 @@ module Unif = struct
      * Check of a type variable occurence iside a type term
      *)
     let rec occur_check x (t: ty) = match t with
-        | `TUnit | `TInt    -> false
+        | `TUnit | `TInt | `TBool    -> false
         | `TVar v           -> (v = x)
         | `TTuple l         -> List.exists (occur_check x) l
+        | `TList t          -> occur_check x t
         | `TFunc (arg, res) -> occur_check x arg || occur_check x res
         | `TSum l           -> List.exists (fun (_, ty) -> occur_check x ty) l
 
@@ -217,6 +229,8 @@ module Unif = struct
                 | (`TUnit, _)                       -> raise ImpossibleToUnify
                 | (`TInt, `TInt)                    -> get_var_eq rest
                 | (`TInt, _)                        -> raise ImpossibleToUnify
+                | (`TBool, `TBool)                  -> get_var_eq rest
+                | (`TBool, _)                       -> raise ImpossibleToUnify
                 | (`TSum l1, `TSum l2)              ->
                     failwith "Unification of polymorphic \
                         variant types is not yet implemented"
@@ -231,6 +245,11 @@ module Unif = struct
                      with Invalid_argument "List.combine" ->
                          raise ImpossibleToUnify)
                 | (`TTuple _, _)                    -> raise ImpossibleToUnify
+
+                | (`TList t1, `TList t2)            -> get_var_eq ((t1, t2) :: rest)
+                | (`TList _, t)                     -> 
+                        Printf.printf "%s\n" (ty_to_string t); raise ImpossibleToUnify
+
                 | (`TFunc (arg1, res1),
                    `TFunc (arg2, res2))             ->
                     get_var_eq ((arg1, arg2)::(res1, res2)::rest)
@@ -272,9 +291,10 @@ end = struct
 
     (* apply the substitutions on a type *)
     let rec apply substs ty = match ty with
-        | `TUnit | `TInt    -> ty
+        | `TUnit | `TInt | `TBool    -> ty
         | `TVar v           -> (try Hashtbl.find substs v with Not_found -> ty)
         | `TTuple l         -> `TTuple (List.map (apply substs) l)
+        | `TList t          -> `TList (apply substs t)
         | `TFunc (arg, res) -> `TFunc (apply substs arg, apply substs res)
         | `TSum l           ->
             `TSum (List.map (fun (ctor, ty) -> (ctor, apply substs ty)) l)

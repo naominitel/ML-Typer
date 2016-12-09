@@ -5,11 +5,51 @@ open Errors
 open Types
 
 (*
+ * Type the pattern of a let form or a function argument
+ * Returns:
+ *  - the type of the whole pattern
+ *  - a type environment for bindings defined in the pattern
+ * TODO: this version of pat_typer is more generic than needed
+ * for this specific typer as it handles variant types. It should
+ * be moved elsewhere.
+ *)
+let pat_infer_mono sess pat =
+    let h = Hashtbl.create 0 in
+    let rec aux pat = match snd pat with
+        | `PatUnit  -> (`TUnit, [])
+        | `PatCst _ -> (`TInt, [])
+
+        | `PatWildcard ->
+            let ty = `TVar (next_var ()) in (ty, [])
+
+        | `PatVar v ->
+            if Hashtbl.mem h v then
+                (* shouldn't the error message highlight the whole pattern ? *)
+                span_fatal sess (fst pat)
+                           (Printf.sprintf "Variable %s is bound several \
+                                            times in this pattern" (Ident.show v))
+            else (
+                Hashtbl.add h v () ;
+                let ty = `TVar (next_var ()) in
+                (ty, [(v, ty)])
+            )
+
+        | `PatCtor (name, pat) ->
+            let (pat_ty, pat_env) = aux pat in
+            (`TSum [(name, pat_ty)], pat_env)
+
+        | `PatTup pats ->
+            let (types, env_list) = List.split (List.map aux pats) in
+            (`TTuple types, List.flatten env_list)
+
+    in aux pat
+
+(*
  * just calls the pat_infer of the core typer and converts it into
  * a type scheme environment (that contains only concrete types)
  *)
 let pat_infer sess pat =
-    let (ty_pat, tenv) = Core.pat_infer sess pat in
+    let (ty_pat, tenv) = pat_infer_mono sess pat in
     (ty_pat, List.map (fun (str, ty) -> (str, `TSTy ty)) tenv)
 
 let rec infer_aux bindings sess env ast =
@@ -23,19 +63,19 @@ let rec infer_aux bindings sess env ast =
             (* + update env (TODO: lazy substitutions! *)
             (try Subst.apply bindings (inst (List.assoc v env))
              with Not_found ->
-                 span_fatal sess (fst ast) (Printf.sprintf "unbound variable %s" v))
+                 span_fatal sess (fst ast) (Printf.sprintf "unbound variable %s"
+                                                           (Ident.show v)))
 
-        | `Let (pat, expr, body) ->
+        | `Let (isrec, pat, expr, body) ->
             (*
              * typing of `let x = e1 in e2' :
              *  - type x in tx
              *  - type e1 in t1
              *  - type e2 in t2, with the pattern in the environment
              *  - return t2, add t1 = tpat as constraint
-             * features recursive definition by default
              *)
             let (ty_pat, nenv) = pat_infer sess pat    in
-            let ty_expr        = aux (nenv @ env) expr in
+            let ty_expr        = aux (if isrec then nenv @ env else env) expr in
             Subst.unify bindings [(ty_pat, ty_expr)] ;
             let nenv_gen =
                 (* Subst.apply is nessesary because of our pseudo-lazy approach *)
@@ -58,16 +98,27 @@ let rec infer_aux bindings sess env ast =
 
         | `If (econd, etrue, efalse) ->
             (*
-             * typing of ifz e1 then e2 else e3
+             * typing of if e1 then e2 else e3
              *  - type of the expression is t2
              *  - add constraint t2 = t3
-             *  - add constraint t1 = int
+             *  - add constraint t1 = bool
              *)
             let ty_econd  = aux env econd  in
             let ty_etrue  = aux env etrue  in
             let ty_efalse = aux env efalse in
-            Subst.unify bindings [(ty_econd, `TInt) ; (ty_etrue, ty_efalse)] ;
+            Subst.unify bindings [(ty_econd, `TBool) ; (ty_etrue, ty_efalse)] ;
             Subst.apply bindings ty_etrue
+
+        | `List lst ->
+            begin match lst with
+                | (x :: t) ->
+                    let ty = aux env x in
+                    let sys = List.map (fun elem -> (ty, aux env elem)) t in
+                    Subst.unify bindings sys ;
+                    Subst.apply bindings (`TList ty)
+                (* FIXME *)
+                | [] -> `TList (`TVar (next_var ()))
+            end
 
         | `Tuple lst ->
             (*
@@ -75,6 +126,22 @@ let rec infer_aux bindings sess env ast =
              * just collects the types and constraints of sub-expressions
              *)
             Subst.apply bindings (`TTuple (List.map (aux env) lst))
+
+        | `BinOp (`Eq, opl, opr) ->
+            let ty_opl = aux env opl in
+            let ty_opr = aux env opr in
+            Subst.unify bindings [(ty_opl, ty_opr)] ;
+            `TBool
+
+        | `BinOp (`Cons, opl, opr) ->
+            let ty_opl  = aux env opl in
+            let ty_opr  = aux env opr in
+            let ty_ret  = `TVar (next_var ()) in
+            Subst.unify bindings [
+                (`TList ty_ret, ty_opr) ;
+                (ty_ret, ty_opl)
+            ] ;
+            Subst.apply bindings (`TList ty_ret)
 
         | `BinOp (_, opl, opr) ->
             (*

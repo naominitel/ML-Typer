@@ -1,0 +1,2 @@
+true: package(batteries), package(llvm)
+true: debug

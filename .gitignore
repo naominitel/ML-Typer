@@ -1,13 +1,12 @@
 *.cmi
 *.cmo
+*.native
 *.mldylib
-*.mli
 *.mllib
 *.swp
 lexer.ml
 parser.ml
 /_build
-/_tags
 /configure
 /Makefile
 /myocamlbuild.ml

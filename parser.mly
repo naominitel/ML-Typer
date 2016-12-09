@@ -35,14 +35,14 @@
 %start main
 %token EOF
 %token DEF
-%token OP CL
-%token EQ COMMA PIPE ARR USCO
-%token IF THEN ELSE FUN LET IN MATCH WITH
-%token PLUS MINUS MULT DIV
+%token OP CL BROP BRCL
+%token EQ COMMA PIPE ARR USCO SEMI
+%token IF THEN ELSE FUN LET REC IN MATCH WITH
+%token PLUS MINUS MULT DIV CONS
 %token <char> UNKNOWN
 %token <int> INT
-%token <string> ID
-%token <string> CTOR
+%token <Ident.t> ID
+%token <Ident.t> CTOR
 %type  <Ast.defs> main
 
 %%
@@ -50,7 +50,7 @@
 main:
     | expr EOF                      { (range 1 1, `Expr $1) }
     | defs EOF                      { (range 1 1, `Defs $1) }
-    | error EOF                     { (range 1 1, `ParseError "") }
+    | error EOF                     { (range 1 1, `ParseError "syntax error") }
     | EOF                           { (range 1 1, `Defs []) }
     ;
 
@@ -60,8 +60,13 @@ defs:
     ;
 
 expr:
+    | cons                          { $1 }
+    | expr EQ cons                  { (range 1 3, `BinOp (`Eq, $1, $3)) }
+    ;
+
+cons:
+    | arith CONS cons               { (range 1 3, `BinOp (`Cons, $1, $3)) }
     | arith                         { $1 }
-    | expr arith                    { (range 1 2, `Apply ($1, $2)) }
     ;
 
 arith:
@@ -73,6 +78,11 @@ arith:
 term:
     | term MULT factor              { (range 1 3, `BinOp (`Mult, $1, $3)) }
     | term DIV factor               { (range 1 3, `BinOp (`Div, $1, $3)) }
+    | apply                         { $1 }
+    ;
+
+apply:
+    | expr factor                   { (range 1 2, `Apply ($1, $2)) }
     | factor                        { $1 }
     ;
 
@@ -93,7 +103,8 @@ fun_expr:
     ;
 
 let_expr:
-    | LET pattern EQ expr IN expr   { (range 1 6, `Let ($2, $4, $6)) }
+    | LET pattern EQ expr IN expr       { (range 1 6, `Let (false, $2, $4, $6)) }
+    | LET REC pattern EQ expr IN expr   { (range 1 6, `Let (true,  $3, $5, $7)) }
     ;
 
 match_expr:
@@ -115,7 +126,6 @@ pattern:
     | ID                            { (range 1 1, `PatVar $1) }
     | OP tuple_pat CL               { (range 1 3, `PatTup (snd $2)) }
     | INT                           { (range 1 1, `PatCst $1) }
-    | CTOR pattern                  { (range 1 2, `PatCtor ($1, $2)) }
     | OP CL                         { (range 1 2, `PatUnit) }
     | OP error CL                   { (range 2 2, `ParseError "") }
     | OP pattern CL                 { $2 }
@@ -127,13 +137,19 @@ tuple_pat:
     ;
 
 entity:
-    | ID                            { (range 1 1, `Var $1) }
-    | INT                           { (range 1 1, `Cst $1) }
-    | CTOR expr                     { (range 1 2, `Ctor ($1, $2)) }
-    | OP CL                         { (range 1 2, `Unit) }
-    | OP tuple CL                   { (range 1 3, `Tuple (snd $2)) }
-    | OP error CL                   { (range 2 2, `ParseError "") }
     | OP expr CL                    { $2 }
+    | OP error CL                   { (range 2 2, `ParseError "") }
+    | OP tuple CL                   { (range 1 3, `Tuple (snd $2)) }
+    | OP CL                         { (range 1 2, `Unit) }
+    | BROP list BRCL                { (range 1 3, `List $2) }
+    | BROP BRCL                     { (range 1 2, `List []) }
+    | INT                           { (range 1 1, `Cst $1) }
+    | ID                            { (range 1 1, `Var $1) }
+    ;
+
+list:
+    | expr                          { [$1] }
+    | expr SEMI list                { $1 :: $3  }
     ;
 
 tuple:
