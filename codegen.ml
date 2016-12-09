@@ -122,7 +122,7 @@ let global_cx = Llvm.global_context ()
  *)
 
 type arity =
-    | Ty
+    | Unknown
     | Fun of int * arity
 
 (*
@@ -138,9 +138,17 @@ type arity =
 
 type 'a env = (Ident.t * 'a) list
 
-type trans_context = {
-    arity_env   : arity env ;
-    tr_env      : Llvm.llvalue env ;
+type variable = {
+    arity: arity ;
+    value: [
+        | `Value of Llvm.llvalue
+        | `External of Llvm.llvalue
+        | `SpecialForm of (trans_context -> ast list -> Llvm.llvalue)
+    ]
+}
+
+and trans_context = {
+    tr_env      : variable env ;
     prim_env    : (trans_context -> ast list -> Llvm.llvalue) env ;
     llctxt      : Llvm.llcontext ;
     llmod       : Llvm.llmodule ;
@@ -150,9 +158,14 @@ type trans_context = {
 (* lookup in the arity environment *)
 
 let rec arity expr cx = match expr with
-    | Var v -> List.assq v cx.arity_env
+    | Var v -> (List.assq v cx.tr_env).arity
     | Closure (args, e) -> Fun (List.length args, arity e cx)
-    | _ -> Ty
+    | _ -> Unknown
+
+let value_of id cx = match (List.assq id cx.tr_env).value with
+    | `Value v -> v
+    | `External v -> v
+    | `SpecialForm _ -> failwith "attempting to take value of special form"
 
 (* the (LLVM) type of an ML value ( basically void* ) *)
 
@@ -290,7 +303,7 @@ let rec codegen_apply cx f args =
     let eval_args = Array.of_list @@ List.map (codegen_expr cx) args in
 
     let rec iter clos arity first_arg argc = match arity with
-        | Ty ->
+        | Unknown ->
             (*
              * stop. at this point we don't know anymore how many
              * args we can give at a time, so we just use ml_apply
@@ -382,31 +395,33 @@ and codegen_decl cx (isrec, id, expr) =
     let eval_expr = match blsize with
         | None -> codegen_expr cx expr
         | Some sz ->
-            let dummy_val = make_ml_alloc cx sz in
+            let value = make_ml_alloc cx sz in
+
+            let dummy_val = {
+                arity = arity ;
+                value = `Value value ;
+            } in
+
             let eval_expr =
                 codegen_expr
                     (if isrec then
-                        { cx with
-                            tr_env = (id, dummy_val) :: cx.tr_env ;
-                            arity_env = (id, arity) :: cx.arity_env
-                        }
+                        { cx with tr_env = (id, dummy_val) :: cx.tr_env }
                      else cx) expr
             in
 
-            ignore @@ make_ml_blcopy cx dummy_val eval_expr sz ;
-            dummy_val
+            ignore @@ make_ml_blcopy cx value eval_expr sz ;
+            value
     in
 
     { cx with
-        tr_env = (id, eval_expr) :: cx.tr_env ;
-        arity_env = (id, arity) :: cx.arity_env
+          tr_env = (id, { arity = arity ; value = `Value eval_expr }) :: cx.tr_env
     }
 
 and codegen_expr cx = function
     | Cst c ->
         let const = codegen_const cx c in
         Llvm.const_inttoptr const mlval_ty
-    | Var id -> List.assq id cx.tr_env
+    | Var id -> value_of id cx
     | Closure (ids, expr) ->
         (* generate function *)
         let arity = List.length ids in
@@ -415,8 +430,11 @@ and codegen_expr cx = function
 
         (* update env *)
         let args = Llvm.params fd in
-        let new_env = List.mapi (fun i id -> (id, args.(i + 1))) ids in
-        let new_ty_env = List.map (fun id -> (id, Ty)) ids in
+        let new_env =
+            List.mapi
+                (fun i id -> (id, { value = `Value (args.(i + 1)) ;
+                                    arity = Unknown })) ids
+        in
 
         let free = find_free_vars ids cx.prim_env expr in
 
@@ -429,8 +447,7 @@ and codegen_expr cx = function
         let closure = make_ml_alloc cx (List.length free + 1) in
         List.iteri
             (fun i id ->
-                try ignore @@ make_ml_store cx closure (i + 1)
-                                            (List.assq id cx.tr_env)
+                try ignore @@ make_ml_store cx closure (i + 1) (value_of id cx)
                 (* probably a primitive or a global. don't capture *)
                 with Not_found -> ())
             free ;
@@ -446,15 +463,15 @@ and codegen_expr cx = function
                 (fun (i, env) id ->
                     try
                         ignore @@ List.assq id cx.tr_env ;
-                        (i + 1, (id, make_ml_fetch cx getenv (i + 1)) :: env)
+                        let v = {
+                            arity = (List.assq id cx.tr_env).arity ;
+                            value = `Value (make_ml_fetch cx getenv (i + 1))
+                        } in (i + 1, (id, v) :: env)
                     with Not_found -> (i + 1, env))
                 (0, new_env) free ;
         in
 
-        let ret = codegen_expr { cx with
-             tr_env = new_env @ cx.tr_env ;
-             arity_env = new_ty_env @ cx.arity_env
-        } expr in
+        let ret = codegen_expr { cx with tr_env = new_env @ cx.tr_env } expr in
 
         ignore @@ Llvm.build_ret ret cx.llbuilder ;
         ignore @@ Llvm.position_at_end prev_blk cx.llbuilder ;
@@ -579,7 +596,6 @@ let codegen_module name defs =
     (* create context *)
     let cx = {
         tr_env = [] ;
-        arity_env = [] ;
         prim_env = init_env ;
         llmod = md ;
         llctxt = global_cx ;
