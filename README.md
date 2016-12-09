@@ -1,93 +1,50 @@
-### µλ: A simple ML-like typer
+## Usage
 
-This is a typer of a very simple purely functional ML-like language.
-The language supports :
-* Basic integer arithmetics
-* Tuples
-* Sum types
-* Conditional expressions
-* Unary functions
-* let ... in form
-* Pattern matching
-
-The goal is to build an interface showing how a ML-like typer works,
-starting with a very simple subset and adding more and more features,
-more and more complex.
-
-### Usage
-
-The typer is written in OCaml, with OCamlLex and OcamlYacc for the
-frontend. It uses [Oasis](https://github.com/ocaml/oasis) for the build,
-which you may install through [OPAM](http://opam.ocaml.org/).
-Just compile with make and run it:
+### Prerequisites
 
 ```
-oasis setup
-./configure
-make
-./rtpl poly
+opam install llvm
+opam install batteries
 ```
 
-`poly` indicates that you want to use the polymorphic typer. Simpler typers
-are available under the names `simple` or `core`. (They should produce the
-same result ; they just use a different algorithm internally.)
+The LLVM C library will probably have to be installed too.
 
-You can enter any expression directly on stdin, and terminate with
-double semi-colon or EOF (^D). The RTPL accepts either a simple expression,
-or a sequence of one or more toplevel definitions (using the `def` keyword).
+### Building the compiler
 
-### Syntax
+```
+ocamlbuild -use-ocamlfind -lflags -cc,g++ main.native
+```
 
-##### Integer arithmetics
+### Compiling and running a program
+
+```
+./main.native examples/test.ml
+llc test.out
+gcc test.out.s mlrt.c -o test
+./test
+```
+
+You can also try the interactive toplevel:
+
+```
+./main.native
+```
+
+Note that this does not run the programs though. This just runs the typer and
+displays the result.
+
+### Syntax for programs
+
+Mostly ML (no sum types), toplevel definitions use the keyword def. There is
+no syntactic sugar for function definitions or expressions, which must be
+explicitly curryfied.
+
+The `fst` and `snd` functions access the head and the tail of a list.
 
 ```ocaml
-a + b
-a - b
-a * b
-a / b
-```
-
-##### Tuples
-
-```ocaml
-(a, b, c, d)
-```
-
-##### Sum types (not implemented yet)
-
-```ocaml
-Foo a
-Bar (a, b, c)
-```
-
-##### Conditional expressions
-
-```ocaml
-ifz expr then expr_true else expr_false
-```
-
-##### Unary functions
-
-```ocaml
-fun pattern -> expression
-```
-
-##### let ... in
-
-```ocaml
-let pattern = expr in body
-```
-
-##### pattern matching
-
-```ocaml
-match expr with
-    | pattern1 -> expr1
-    | pattern2 -> expr2
-```
-
-##### toplevel bindings
-
-```ocaml
-def pattern = expr
+def map =
+    fun f -> fun l ->
+        if l == [] then []
+        else (f (fst l)) :: (map f (snd l))
+>>>>>>> 40eb8e0... .
 ```
