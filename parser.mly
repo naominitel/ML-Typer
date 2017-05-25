@@ -14,8 +14,6 @@
     open Ast
     open Codemap
     open Lexing
-
-    let range s e = (rhs_start_pos s, rhs_end_pos e)
 %}
 
 %start main
@@ -34,10 +32,10 @@
 %%
 
 main:
-    | expr EOF                      { (range 1 1, `Expr $1) }
-    | defs EOF                      { (range 1 1, `Defs $1) }
-    | error EOF                     { (range 1 1, `ParseError "syntax error") }
-    | EOF                           { (range 1 1, `Defs []) }
+    | expr EOF                      { (($startpos, $endpos), `Expr $1) }
+    | defs EOF                      { (($startpos, $endpos), `Defs $1) }
+    | error EOF                     { (($startpos, $endpos), `ParseError "syntax error") }
+    | EOF                           { (($startpos, $endpos), `Defs []) }
     ;
 
 defs:
@@ -47,28 +45,28 @@ defs:
 
 expr:
     | cons                          { $1 }
-    | expr EQ cons                  { (range 1 3, `BinOp (`Eq, $1, $3)) }
+    | expr EQ cons                  { (($startpos, $endpos), `BinOp (`Eq, $1, $3)) }
     ;
 
 cons:
-    | arith CONS cons               { (range 1 3, `BinOp (`Cons, $1, $3)) }
+    | arith CONS cons               { (($startpos, $endpos), `BinOp (`Cons, $1, $3)) }
     | arith                         { $1 }
     ;
 
 arith:
-    | arith PLUS term               { (range 1 3, `BinOp (`Plus, $1, $3)) }
-    | arith MINUS term              { (range 1 3, `BinOp (`Minus, $1, $3)) }
+    | arith PLUS term               { (($startpos, $endpos), `BinOp (`Plus, $1, $3)) }
+    | arith MINUS term              { (($startpos, $endpos), `BinOp (`Minus, $1, $3)) }
     | term                          { $1 }
     ;
 
 term:
-    | term MULT apply               { (range 1 3, `BinOp (`Mult, $1, $3)) }
-    | term DIV apply                { (range 1 3, `BinOp (`Div, $1, $3)) }
+    | term MULT apply               { (($startpos, $endpos), `BinOp (`Mult, $1, $3)) }
+    | term DIV apply                { (($startpos, $endpos), `BinOp (`Div, $1, $3)) }
     | apply                         { $1 }
     ;
 
 apply:
-    | apply factor                  { (range 1 2, `Apply ($1, $2)) }
+    | apply factor                  { (($startpos, $endpos), `Apply ($1, $2)) }
     | factor                        { $1 }
     ;
 
@@ -81,56 +79,56 @@ factor:
     ;
 
 if_expr:
-    | IF expr THEN expr ELSE expr   { (range 1 6, `If ($2, $4, $6)) }
+    | IF expr THEN expr ELSE expr   { (($startpos, $endpos), `If ($2, $4, $6)) }
     ;
 
 fun_expr:
-    | FUN pattern ARR expr          { (range 1 4, `Fun ($2, $4)) }
+    | FUN pattern ARR expr          { (($startpos, $endpos), `Fun ($2, $4)) }
     ;
 
 let_expr:
-    | LET pattern EQ expr IN expr       { (range 1 6, `Let (false, $2, $4, $6)) }
-    | LET REC pattern EQ expr IN expr   { (range 1 6, `Let (true,  $3, $5, $7)) }
+    | LET pattern EQ expr IN expr       { (($startpos, $endpos), `Let (false, $2, $4, $6)) }
+    | LET REC pattern EQ expr IN expr   { (($startpos, $endpos), `Let (true,  $3, $5, $7)) }
     ;
 
 match_expr:
-    | MATCH expr WITH arm_list      { (range 1 4, `Match ($2, snd $4)) }
-    | MATCH expr WITH PIPE arm_list { (range 1 5, `Match ($2, snd $5)) }
+    | MATCH expr WITH arm_list      { (($startpos, $endpos), `Match ($2, snd $4)) }
+    | MATCH expr WITH PIPE arm_list { (($startpos, $endpos), `Match ($2, snd $5)) }
     ;
 
 arm_list:
-    | arm                           { (range 1 1, [snd $1]) }
-    | arm PIPE arm_list             { (range 1 3, snd $1 :: snd $3) }
+    | arm                           { (($startpos, $endpos), [snd $1]) }
+    | arm PIPE arm_list             { (($startpos, $endpos), snd $1 :: snd $3) }
     ;
 
 arm:
-    | pattern ARR expr              { (range 1 3, ($1, $3)) }
+    | pattern ARR expr              { (($startpos, $endpos), ($1, $3)) }
     ;
 
 pattern:
-    | USCO                          { (range 1 1, `PatWildcard) }
-    | ID                            { (range 1 1, `PatVar $1) }
-    | OP tuple_pat CL               { (range 1 3, `PatTup (snd $2)) }
-    | INT                           { (range 1 1, `PatCst $1) }
-    | OP CL                         { (range 1 2, `PatUnit) }
-    | OP error CL                   { (range 2 2, `ParseError "") }
+    | USCO                          { (($startpos, $endpos), `PatWildcard) }
+    | ID                            { (($startpos, $endpos), `PatVar $1) }
+    | OP tuple_pat CL               { (($startpos, $endpos), `PatTup (snd $2)) }
+    | INT                           { (($startpos, $endpos), `PatCst $1) }
+    | OP CL                         { (($startpos, $endpos), `PatUnit) }
+    | OP error CL                   { (($startpos, $endpos), `ParseError "") }
     | OP pattern CL                 { $2 }
     ;
 
 tuple_pat:
-    | pattern COMMA pattern         { (range 1 3, [$1; $3]) }
-    | pattern COMMA tuple_pat       { (range 1 3, $1 :: snd $3) }
+    | pattern COMMA pattern         { (($startpos, $endpos), [$1; $3]) }
+    | pattern COMMA tuple_pat       { (($startpos, $endpos), $1 :: snd $3) }
     ;
 
 entity:
     | OP expr CL                    { $2 }
-    | OP error CL                   { (range 2 2, `ParseError "") }
-    | OP tuple CL                   { (range 1 3, `Tuple (snd $2)) }
-    | OP CL                         { (range 1 2, `Unit) }
-    | BROP list BRCL                { (range 1 3, `List $2) }
-    | BROP BRCL                     { (range 1 2, `List []) }
-    | INT                           { (range 1 1, `Cst $1) }
-    | ID                            { (range 1 1, `Var $1) }
+    | OP error CL                   { (($startpos, $endpos), `ParseError "") }
+    | OP tuple CL                   { (($startpos, $endpos), `Tuple (snd $2)) }
+    | OP CL                         { (($startpos, $endpos), `Unit) }
+    | BROP list BRCL                { (($startpos, $endpos), `List $2) }
+    | BROP BRCL                     { (($startpos, $endpos), `List []) }
+    | INT                           { (($startpos, $endpos), `Cst $1) }
+    | ID                            { (($startpos, $endpos), `Var $1) }
     ;
 
 list:
@@ -139,6 +137,6 @@ list:
     ;
 
 tuple:
-    | expr COMMA expr               { (range 1 3, [$1; $3]) }
-    | expr COMMA tuple              { (range 1 3, $1 :: snd $3) }
+    | expr COMMA expr               { (($startpos, $endpos), [$1; $3]) }
+    | expr COMMA tuple              { (($startpos, $endpos), $1 :: snd $3) }
     ;
