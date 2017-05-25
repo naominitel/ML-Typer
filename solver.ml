@@ -77,8 +77,8 @@ and unify_terms pool sess t1 t2 =
         | (TApp (t1, v1), TApp(t2, v2)) -> unify_terms pool sess t1 t2 ; unify_terms pool sess v1 v2
         | (TConst x, TConst y) when x = y -> ()
         | _ -> Errors.span_fatal sess dummy_sp
-                   (Printf.sprintf "impossible to unify %s with %s"
-                        (show_sch @@ Hmx.sch t1) (show_sch @@ Hmx.sch t2))
+                   (Format.asprintf "impossible to unify %a with %a"
+                        Printer.sch (Hmx.sch t1) Printer.sch (Hmx.sch t2))
 
 let rec var_member v lst = match lst with
     | [] -> false

@@ -2,8 +2,8 @@
 
 let rec rtpl env =
     let open Utils.Maybe in
-    Printf.printf "λ > " ;
-    flush stdout ;
+    Format.printf "λ > " ;
+    Format.pp_print_flush Format.std_formatter () ;
     (try
         let (sess, (sp, defs)) = Session.sess_open () in
         match defs with
@@ -32,9 +32,9 @@ let rec rtpl env =
                                 | [] -> ()
                                 | l when l == env -> ()
                                 | ((id, ty) :: l) ->
-                                    Printf.printf
-                                        "%s: %s\n" (Ident.show id)
-                                        (Printer.show_sch ty) ;
+                                    Format.printf
+                                        "%s: %a\n" (Ident.show id)
+                                        Printer.sch ty ;
                                     iter l
                             in iter new_env ;
                             rtpl new_env)
@@ -44,12 +44,12 @@ let rec rtpl env =
                     (Ast.check (Errors.span_err sess) ast) >>=
                         (fun ast ->
                             let sty = Typer.infer sess env ast in
-                            Printf.printf
-                                "type: %s\n"
-                                (Printer.show_sch (Hmx.sch sty)) ;
+                            Format.printf
+                                "type: %a\n"
+                                Printer.sch (Hmx.sch sty) ;
                             None )) ;
                 rtpl env
          with Errors.CompileFailure -> rtpl env)
 
 let run init_ty_env =
-    Printf.printf "\t\tRead Type Print Loop version 0.1. \n\n" ; rtpl init_ty_env
+    Format.printf "\t\tRead Type Print Loop version 0.1. \n\n" ; rtpl init_ty_env

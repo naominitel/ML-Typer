@@ -1,3 +1,4 @@
+(*
 let compile_and_save path =
     let (sess, (sp, defs)) = Session.sess_open ~file:path () in
     match defs with
@@ -41,14 +42,17 @@ let compile_and_save path =
         | `Expr expr ->
             Errors.span_err sess sp "expressions are not allowed at toplevel" ;
             `Err
+            *)
 
 let () =
     let pname = Sys.argv.(0) in
     match List.tl @@ Array.to_list Sys.argv with
-        | [file] ->
+        | [file] -> ()
+                (*
             begin match compile_and_save file with
                 | `Ok -> exit 0
                 | `Err -> exit 1
             end
+*)
         | [] -> Rtpl.run Typer.init_ty_env
         | _ -> Printf.fprintf stderr "usage: %s [FILE]\n" pname ; exit 1

@@ -1,5 +1,6 @@
 open Hmx
 open Types
+open Format
 
 module VMap =
     Map.Make (struct
@@ -13,94 +14,97 @@ module VSet =
         let compare x y = if x == y then 0 else -1 (* FIXME *)
     end)
 
-let show_var (vars, next) var =
+let var (vars, next) ff var =
     (* Printf.sprintf "%d" var.name *)
-    try VMap.find var !vars
-    with Not_found ->
-        let name = Printf.sprintf "α%d" !next in
+    let id = try VMap.find var !vars with Not_found ->
+        let name = !next in
         incr next ; vars := VMap.add var name !vars ;
         name
+    in fprintf ff "α%d" id
 
-let rec show_ty var_printer vl = function
-    | TConst s -> Ident.show s
-    | TVar s -> show_tvar var_printer vl s
+let rec ty var_printer vl ff = function
     | TApp (TApp (s1, s2), s3) when s1 = arrow ->
-        let s2 = show_ty var_printer vl s2 in
-        let s3 = show_ty var_printer vl s3 in
-        Printf.sprintf "(%s -> %s)" s2 s3
-    | TApp (s1, s2) ->
-        let s1 = show_ty var_printer vl s1 in
-        let s2 = show_ty var_printer vl s2 in
-        Printf.sprintf "(%s %s)" s1 s2
+        fprintf ff "%a -> %a"
+            (ty1 var_printer vl) s2
+            (ty  var_printer vl) s3
+    | t -> ty1 var_printer vl ff t
 
-and show_tvar var_printer vl var =
-    let v = Union_find.find var in
+and ty1 var_printer vl ff = function
+    | TApp (s1, s2) ->
+        fprintf ff "%a %a"
+            (ty1 var_printer vl) s1
+            (ty2 var_printer vl) s2
+    | t -> ty2 var_printer vl ff t
+
+and ty2 var_printer vl ff = function
+    | TConst s -> fprintf ff "%s" @@ Ident.show s
+    | TVar s -> tvar var_printer vl ff s
+    | s -> fprintf ff "(%a)" (ty var_printer vl) s
+
+and tvar var_printer vl ff v =
+    let v = Union_find.find v in
     begin match v.structure with
         | Some s ->
             let mark = Types.next_mark () in
             v.mark <- mark ;
             if VSet.mem v !vl then
-                show_var var_printer v
+                var var_printer ff v
             else begin
                 vl := VSet.add v !vl ;
-                let t = (show_ty var_printer vl s) in
-                if v.mark == mark then t
-                else Printf.sprintf "(%s as %s)" t (show_var var_printer v)
+                let t = asprintf "%a" (ty var_printer vl) s in
+                if v.mark == mark then fprintf ff "%s" t
+                else fprintf ff "(%s as %a)" t (var var_printer) v
             end
-        | None -> show_var var_printer v
+        | None -> var var_printer ff v
     end
 
-let rec show_constr vp vl const = match const with
-    | CDump -> "Dump"
-    | CBool true -> "True"
-    | CBool false -> "False"
-    | CApp (pred, args) when pred = Hmx.is_subtype ->
-        Printf.sprintf "%s = %s" (show_ty vp vl @@ List.hd args) (show_ty vp vl @@ List.hd @@ List.tl args)
-    | CApp (pred, args) ->
-        Printf.sprintf "%s %s"
-            (Ident.show pred) (String.concat ", " @@ List.map (show_ty vp vl) args)
-    | CAnd (c1, c2) ->
-        Printf.sprintf "(%s) ∧ (%s)" (show_constr vp vl c1) (show_constr vp vl c2)
-    | CExists (vars, constr) ->
-        Printf.sprintf"∃ %s : %s"
-            (String.concat ", " (List.map (fun v -> show_var vp (Union_find.find v)) vars))
-            (show_constr vp vl constr)
-    | CDef (var, sch, constr) ->
-        Printf.sprintf "def %s: %s in %s"
-            (Ident.show var) (show_sch_ vp vl sch) (show_constr vp vl constr)
-    | CInstance (var, _, ty) ->
-        Printf.sprintf "%s < %s"
-            (Ident.show var) (show_ty vp vl ty)
+let rec list sep pp ff = function
+    | []         -> ()
+    | [hd]       -> pp ff hd
+    | (hd :: tl) -> fprintf ff "%a%s%a" pp hd sep (list sep pp) tl
 
-and show_sch_ var_printer vl (Forall (vars, c, ty)) =
+let rec constr vp vl ff const = match const with
+    | CDump -> fprintf ff "Dump"
+    | CBool true -> fprintf ff "True"
+    | CBool false -> fprintf ff "False"
+    | CApp (pred, args) when pred = Hmx.is_subtype ->
+        fprintf ff "%a = %a" (ty vp vl) (List.hd args) (ty vp vl) (List.hd @@ List.tl args)
+    | CApp (pred, args) ->
+        fprintf ff "%s %a" (Ident.show pred) (list ", " @@ ty vp vl) args
+    | CAnd (c1, c2) ->
+        fprintf ff "(%a) ∧ (%a)" (constr vp vl) c1 (constr vp vl) c2
+    | CExists (vars, cstr) ->
+        fprintf ff "∃ %a : %a"
+            (list ", " (fun ff v -> var vp ff (Union_find.find v))) vars
+            (constr vp vl) cstr
+    | CDef (var, sch_, cstr) ->
+        fprintf ff "def %s: %a in %a"
+            (Ident.show var) (sch vp vl) sch_ (constr vp vl) cstr
+    | CInstance (var, _, t) ->
+        fprintf ff "%s < %a" (Ident.show var) (ty vp vl) t
+
+and sch var_printer vl ff (Forall (vars, c, t)) =
     (* force printing of the type first so that variables
        are named after their order of occurence in the
        type term rather than in the quantifier list *)
-    let ty = (show_ty var_printer vl ty) in
-    if vars == [] then ty
+    if vars == [] then ty var_printer vl ff t
     else match c with
         | CBool true ->
-            Printf.sprintf "∀ %s: %s"
-                (String.concat ", "
-                     (List.map
-                          (fun v -> show_var var_printer (Union_find.find v))
-                          vars))
-                ty
+            fprintf ff "∀ %a: %a"
+                (list ", " (fun ff v -> var var_printer ff (Union_find.find v))) vars
+                (ty var_printer vl) t
         | _ ->
-            Printf.sprintf "∀ %s[%s]: %s"
-                (String.concat ", "
-                     (List.map
-                          (fun v -> show_var var_printer (Union_find.find v))
-                          vars))
-                (show_constr var_printer vl c)
-                ty
+            fprintf ff "∀ %a[%a]: %a"
+                (list ", " (fun ff v -> var var_printer ff (Union_find.find v))) vars
+                (constr var_printer vl) c
+                (ty var_printer vl) t
 
-let show_sch sch =
+let sch ff sch_ =
     let var_printer = (ref VMap.empty, ref 0) in
     let vl = ref VSet.empty in
-    show_sch_ var_printer vl sch
+    sch var_printer vl ff sch_
 
-let show_constr constr =
+let constr ff cstr =
     let var_printer = (ref VMap.empty, ref 0) in
     let vl = ref VSet.empty in
-    show_constr var_printer vl constr
+    constr var_printer vl ff cstr
