@@ -97,7 +97,6 @@ type defs = [
  * accordingly.
  * TODO: if only we had monads... implement in Utils?
  *)
-  
 
 let rec check_pat err ((sp, pat): err_pattern) : pattern Utils.Maybe.t =
   let open Utils.Maybe in

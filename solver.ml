@@ -53,8 +53,9 @@ let instance pool (Forall (vars, c, term)) =
     in
     alpha_conv term replace
 
-let dummy_pos = let open Codemap in { fileno = 0 ; line = 1 ; col = 1 }
-let dummy_sp = (dummy_pos, { dummy_pos with Codemap.col = 2 })
+(* FIXME FIXME FIXME FIXME *)
+let dummy_pos = Lexing.({ dummy_pos with pos_fname = "<stdin>" ; pos_lnum = 1 ; pos_cnum = 1 })
+let dummy_sp = (dummy_pos, { dummy_pos with Lexing.pos_cnum = 2 })
 
 let rec unify pool sess t1 t2 =
     let open Union_find in

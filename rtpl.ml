@@ -2,6 +2,7 @@
 
 let rec rtpl env =
     let open Utils.Maybe in
+    Format.pp_print_flush Format.err_formatter () ;
     Format.printf "λ > " ;
     Format.pp_print_flush Format.std_formatter () ;
     (try
