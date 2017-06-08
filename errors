@@ -1,0 +1,739 @@
+main: BROP INT SEMI WITH 
+##
+## Ends in an error in state: 42.
+##
+## parser_list -> expr SEMI . parser_list [ BRCL ]
+##
+## The known suffix of the stack is as follows:
+## expr SEMI 
+##
+
+Expected an expression.
+
+main: BROP INT WITH 
+##
+## Ends in an error in state: 41.
+##
+## expr -> expr . EQ cons [ SEMI EQ BRCL ]
+## parser_list -> expr . [ BRCL ]
+## parser_list -> expr . SEMI parser_list [ BRCL ]
+##
+## The known suffix of the stack is as follows:
+## expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+Expected a semicolon or an operator.
+
+main: BROP WITH 
+##
+## Ends in an error in state: 25.
+##
+## entity -> BROP . parser_list BRCL [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## entity -> BROP . BRCL [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## BROP 
+##
+
+Expected an expression.
+
+main: DEF USCO EQ INT WITH 
+##
+## Ends in an error in state: 92.
+##
+## defs -> DEF pattern EQ expr . [ EOF ]
+## defs -> DEF pattern EQ expr . defs [ EOF ]
+## expr -> expr . EQ cons [ EQ EOF DEF ]
+##
+## The known suffix of the stack is as follows:
+## DEF pattern EQ expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+Expected an operator.
+
+main: DEF USCO EQ WITH 
+##
+## Ends in an error in state: 91.
+##
+## defs -> DEF pattern EQ . expr [ EOF ]
+## defs -> DEF pattern EQ . expr defs [ EOF ]
+##
+## The known suffix of the stack is as follows:
+## DEF pattern EQ 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: DEF USCO WITH 
+##
+## Ends in an error in state: 90.
+##
+## defs -> DEF pattern . EQ expr [ EOF ]
+## defs -> DEF pattern . EQ expr defs [ EOF ]
+##
+## The known suffix of the stack is as follows:
+## DEF pattern 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: DEF WITH 
+##
+## Ends in an error in state: 89.
+##
+## defs -> DEF . pattern EQ expr [ EOF ]
+## defs -> DEF . pattern EQ expr defs [ EOF ]
+##
+## The known suffix of the stack is as follows:
+## DEF 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: FUN USCO ARR WITH 
+##
+## Ends in an error in state: 24.
+##
+## fun_expr -> FUN pattern ARR . expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## FUN pattern ARR 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: FUN USCO WITH 
+##
+## Ends in an error in state: 23.
+##
+## fun_expr -> FUN pattern . ARR expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## FUN pattern 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: FUN WITH 
+##
+## Ends in an error in state: 22.
+##
+## fun_expr -> FUN . pattern ARR expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## FUN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: IF INT THEN INT ELSE WITH 
+##
+## Ends in an error in state: 59.
+##
+## if_expr -> IF expr THEN expr ELSE . expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN expr ELSE 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: IF INT THEN INT WITH 
+##
+## Ends in an error in state: 58.
+##
+## expr -> expr . EQ cons [ EQ ELSE ]
+## if_expr -> IF expr THEN expr . ELSE expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: IF INT THEN WITH 
+##
+## Ends in an error in state: 57.
+##
+## if_expr -> IF expr THEN . expr ELSE expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: IF INT WITH 
+##
+## Ends in an error in state: 56.
+##
+## expr -> expr . EQ cons [ THEN EQ ]
+## if_expr -> IF expr . THEN expr ELSE expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## IF expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: IF WITH 
+##
+## Ends in an error in state: 20.
+##
+## if_expr -> IF . expr THEN expr ELSE expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## IF 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT CONS WITH 
+##
+## Ends in an error in state: 51.
+##
+## cons -> arith CONS . cons [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## arith CONS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT DIV INT USCO 
+##
+## Ends in an error in state: 38.
+##
+## apply -> apply . factor [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## term -> term DIV apply . [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## term DIV apply 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT DIV WITH 
+##
+## Ends in an error in state: 37.
+##
+## term -> term DIV . apply [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## term DIV 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT EQ WITH 
+##
+## Ends in an error in state: 53.
+##
+## expr -> expr EQ . cons [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## expr EQ 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT MINUS WITH 
+##
+## Ends in an error in state: 49.
+##
+## arith -> arith MINUS . term [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## arith MINUS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT MULT INT USCO 
+##
+## Ends in an error in state: 35.
+##
+## apply -> apply . factor [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## term -> term MULT apply . [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## term MULT apply 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT MULT WITH 
+##
+## Ends in an error in state: 28.
+##
+## term -> term MULT . apply [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## term MULT 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT PLUS WITH 
+##
+## Ends in an error in state: 46.
+##
+## arith -> arith PLUS . term [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## arith PLUS 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT USCO 
+##
+## Ends in an error in state: 48.
+##
+## apply -> apply . factor [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## term -> apply . [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## apply 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: INT WITH 
+##
+## Ends in an error in state: 95.
+##
+## expr -> expr . EQ cons [ EQ EOF ]
+## main -> expr . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET OP USCO COMMA USCO WITH 
+##
+## Ends in an error in state: 15.
+##
+## tuple_pat -> pattern . COMMA pattern [ CL ]
+## tuple_pat -> pattern COMMA pattern . [ CL ]
+## tuple_pat -> pattern . COMMA tuple_pat [ CL ]
+##
+## The known suffix of the stack is as follows:
+## pattern COMMA pattern 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET OP USCO COMMA WITH 
+##
+## Ends in an error in state: 13.
+##
+## tuple_pat -> pattern COMMA . pattern [ CL ]
+## tuple_pat -> pattern COMMA . tuple_pat [ CL ]
+##
+## The known suffix of the stack is as follows:
+## pattern COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET OP USCO WITH 
+##
+## Ends in an error in state: 12.
+##
+## pattern -> OP pattern . CL [ EQ COMMA CL ARR ]
+## tuple_pat -> pattern . COMMA pattern [ CL ]
+## tuple_pat -> pattern . COMMA tuple_pat [ CL ]
+##
+## The known suffix of the stack is as follows:
+## OP pattern 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET OP WITH 
+##
+## Ends in an error in state: 6.
+##
+## pattern -> OP . tuple_pat CL [ EQ COMMA CL ARR ]
+## pattern -> OP . CL [ EQ COMMA CL ARR ]
+## pattern -> OP . pattern CL [ EQ COMMA CL ARR ]
+##
+## The known suffix of the stack is as follows:
+## OP 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET REC USCO EQ INT IN WITH 
+##
+## Ends in an error in state: 62.
+##
+## let_expr -> LET REC pattern EQ expr IN . expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET REC pattern EQ expr IN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET REC USCO EQ INT WITH 
+##
+## Ends in an error in state: 61.
+##
+## expr -> expr . EQ cons [ IN EQ ]
+## let_expr -> LET REC pattern EQ expr . IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET REC pattern EQ expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET REC USCO EQ WITH 
+##
+## Ends in an error in state: 18.
+##
+## let_expr -> LET REC pattern EQ . expr IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET REC pattern EQ 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET REC USCO WITH 
+##
+## Ends in an error in state: 17.
+##
+## let_expr -> LET REC pattern . EQ expr IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET REC pattern 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET REC WITH 
+##
+## Ends in an error in state: 5.
+##
+## let_expr -> LET REC . pattern EQ expr IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET REC 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET USCO EQ INT IN WITH 
+##
+## Ends in an error in state: 67.
+##
+## let_expr -> LET pattern EQ expr IN . expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET pattern EQ expr IN 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET USCO EQ INT WITH 
+##
+## Ends in an error in state: 66.
+##
+## expr -> expr . EQ cons [ IN EQ ]
+## let_expr -> LET pattern EQ expr . IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET pattern EQ expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET USCO EQ WITH 
+##
+## Ends in an error in state: 65.
+##
+## let_expr -> LET pattern EQ . expr IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET pattern EQ 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET USCO WITH 
+##
+## Ends in an error in state: 64.
+##
+## let_expr -> LET pattern . EQ expr IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET pattern 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: LET WITH 
+##
+## Ends in an error in state: 3.
+##
+## let_expr -> LET . pattern EQ expr IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## let_expr -> LET . REC pattern EQ expr IN expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## LET 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: MATCH INT THEN 
+##
+## Ends in an error in state: 69.
+##
+## expr -> expr . EQ cons [ WITH EQ ]
+## match_expr -> MATCH expr . WITH arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## match_expr -> MATCH expr . WITH PIPE arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## MATCH expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: MATCH INT WITH PIPE WITH 
+##
+## Ends in an error in state: 71.
+##
+## match_expr -> MATCH expr WITH PIPE . arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## MATCH expr WITH PIPE 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: MATCH INT WITH USCO ARR ID PIPE WITH 
+##
+## Ends in an error in state: 77.
+##
+## arm_list -> arm PIPE . arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## arm PIPE 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: MATCH INT WITH USCO ARR WITH 
+##
+## Ends in an error in state: 73.
+##
+## arm -> pattern ARR . expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## pattern ARR 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: MATCH INT WITH USCO WITH 
+##
+## Ends in an error in state: 72.
+##
+## arm -> pattern . ARR expr [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## pattern 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: MATCH INT WITH WITH 
+##
+## Ends in an error in state: 70.
+##
+## match_expr -> MATCH expr WITH . arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## match_expr -> MATCH expr WITH . PIPE arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## MATCH expr WITH 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: MATCH WITH 
+##
+## Ends in an error in state: 2.
+##
+## match_expr -> MATCH . expr WITH arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## match_expr -> MATCH . expr WITH PIPE arm_list [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## MATCH 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: OP INT COMMA INT WITH 
+##
+## Ends in an error in state: 86.
+##
+## expr -> expr . EQ cons [ EQ COMMA CL ]
+## tuple -> expr . COMMA expr [ CL ]
+## tuple -> expr COMMA expr . [ CL ]
+## tuple -> expr . COMMA tuple [ CL ]
+##
+## The known suffix of the stack is as follows:
+## expr COMMA expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: OP INT COMMA WITH 
+##
+## Ends in an error in state: 84.
+##
+## tuple -> expr COMMA . expr [ CL ]
+## tuple -> expr COMMA . tuple [ CL ]
+##
+## The known suffix of the stack is as follows:
+## expr COMMA 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: OP INT WITH 
+##
+## Ends in an error in state: 83.
+##
+## entity -> OP expr . CL [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## expr -> expr . EQ cons [ EQ COMMA CL ]
+## tuple -> expr . COMMA expr [ CL ]
+## tuple -> expr . COMMA tuple [ CL ]
+##
+## The known suffix of the stack is as follows:
+## OP expr 
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 48, spurious reduction of production term -> apply 
+## In state 27, spurious reduction of production arith -> term 
+## In state 45, spurious reduction of production cons -> arith 
+## In state 44, spurious reduction of production expr -> cons 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: OP WITH 
+##
+## Ends in an error in state: 1.
+##
+## entity -> OP . expr CL [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## entity -> OP . tuple CL [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+## entity -> OP . CL [ WITH THEN SEMI PLUS PIPE OP MULT MINUS MATCH LET INT IN IF ID FUN EQ EOF ELSE DIV DEF CONS COMMA CL BROP BRCL ]
+##
+## The known suffix of the stack is as follows:
+## OP 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+main: WITH 
+##
+## Ends in an error in state: 0.
+##
+## main' -> . main [ # ]
+##
+## The known suffix of the stack is as follows:
+## 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
