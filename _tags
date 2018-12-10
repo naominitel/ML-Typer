@@ -1,2 +1,2 @@
-true: package(batteries), package(llvm)
+true: package(compiler-libs.common)
 true: debug

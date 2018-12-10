@@ -1,15 +1,15 @@
 open Hmx
-open Types
+open Hmx_types
 
 module VMap =
     Map.Make (struct
-        type t = Types.var_descr
+        type t = Hmx_types.var_descr
         let compare x y = if x == y then 0 else -1 (* FIXME *)
     end)
 
 module VSet =
     Set.Make (struct
-        type t = Types.var_descr
+        type t = Hmx_types.var_descr
         let compare x y = if x == y then 0 else -1 (* FIXME *)
     end)
 
@@ -22,7 +22,7 @@ let show_var (vars, next) var =
         name
 
 let rec show_ty var_printer vl = function
-    | TConst s -> Ident.show s
+    | TConst s -> Uid.show s
     | TVar s -> show_tvar var_printer vl s
     | TApp (TApp (s1, s2), s3) when s1 = arrow ->
         let s2 = show_ty var_printer vl s2 in
@@ -37,7 +37,7 @@ and show_tvar var_printer vl var =
     let v = Union_find.find var in
     begin match v.structure with
         | Some s ->
-            let mark = Types.next_mark () in
+            let mark = Hmx_types.next_mark () in
             v.mark <- mark ;
             if VSet.mem v !vl then
                 show_var var_printer v
@@ -58,7 +58,7 @@ let rec show_constr vp vl const = match const with
         Printf.sprintf "%s = %s" (show_ty vp vl @@ List.hd args) (show_ty vp vl @@ List.hd @@ List.tl args)
     | CApp (pred, args) ->
         Printf.sprintf "%s %s"
-            (Ident.show pred) (String.concat ", " @@ List.map (show_ty vp vl) args)
+            (Uid.show pred) (String.concat ", " @@ List.map (show_ty vp vl) args)
     | CAnd (c1, c2) ->
         Printf.sprintf "(%s) ∧ (%s)" (show_constr vp vl c1) (show_constr vp vl c2)
     | CExists (vars, constr) ->
@@ -67,10 +67,10 @@ let rec show_constr vp vl const = match const with
             (show_constr vp vl constr)
     | CDef (var, sch, constr) ->
         Printf.sprintf "def %s: %s in %s"
-            (Ident.show var) (show_sch_ vp vl sch) (show_constr vp vl constr)
+            (Uid.show var) (show_sch_ vp vl sch) (show_constr vp vl constr)
     | CInstance (var, _, ty) ->
         Printf.sprintf "%s < %s"
-            (Ident.show var) (show_ty vp vl ty)
+            (Uid.show var) (show_ty vp vl ty)
 
 and show_sch_ var_printer vl (Forall (vars, c, ty)) =
     (* force printing of the type first so that variables

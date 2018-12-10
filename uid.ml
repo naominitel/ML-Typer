@@ -1,7 +1,7 @@
 type t = string
 
 let dummy_id = "#gensym#"
-let gensym () = Bytes.copy dummy_id
+let gensym () = String.copy dummy_id
 
 let show ident = ident
 
@@ -9,7 +9,8 @@ let show ident = ident
 
 let eq = (==)
 
-let interner = Hashtbl.create 100
+let interner: (string, string) Hashtbl.t =
+    Hashtbl.create 100
 
 let intern ident =
     try (Hashtbl.find interner ident)

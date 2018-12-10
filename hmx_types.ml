@@ -1,7 +1,7 @@
 (* Internal representation of types *)
 
 type ty =
-    | TConst of Ident.t
+    | TConst of string
     | TVar of var
     | TApp of ty * ty
 
@@ -14,7 +14,7 @@ and var_descr = {
     mutable mark: unit ref
 }
 
-let arrow = TConst (Ident.intern "->")
+let arrow = TConst (Uid.intern "->")
 
 let function_type t1 t2 =
     TApp ((TApp (arrow, t1)), t2)
@@ -30,7 +30,10 @@ let fresh_ty_var () =
         mark = next_mark ()
     }
 
-let t_int = TConst (Ident.intern "int")
-let t_bool = TConst (Ident.intern "bool")
-let t_unit = TConst (Ident.intern "unit")
-let t_list = TConst (Ident.intern "list")
+let t_int    = TConst (Uid.intern "int")
+let t_char   = TConst (Uid.intern "char")
+let t_string = TConst (Uid.intern "string")
+let t_float  = TConst (Uid.intern "float")
+let t_bool   = TConst (Uid.intern "bool")
+let t_unit   = TConst (Uid.intern "unit")
+let t_list   = TConst (Uid.intern "list")

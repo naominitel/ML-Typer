@@ -1,4 +1,4 @@
-open Types
+open Hmx_types
 
 let tuple = Hmx.tuple_type 2
 
@@ -7,39 +7,41 @@ let tuple = Hmx.tuple_type 2
  * elsewhere
  *)
 let init_ty_env = [
-    (Ident.intern "hd",
-     let v = Types.fresh_ty_var () in
-     let lst = Types.TApp (Types.t_list, TVar v) in
-     Hmx.Forall ([v], Hmx.CBool true, Types.function_type lst (Types.TVar v))) ;
+    (Uid.intern "hd",
+     let v = Hmx_types.fresh_ty_var () in
+     let lst = Hmx_types.TApp (Hmx_types.t_list, TVar v) in
+     Hmx.Forall ([v], Hmx.CBool true, Hmx_types.function_type lst (Hmx_types.TVar v))) ;
 
-    (Ident.intern "tl",
-     let v = Types.fresh_ty_var () in
-     let lst = Types.TApp (Types.t_list, TVar v) in
-     Hmx.Forall ([v], Hmx.CBool true, Types.function_type lst lst)) ;
+    (Uid.intern "tl",
+     let v = Hmx_types.fresh_ty_var () in
+     let lst = Hmx_types.TApp (Hmx_types.t_list, TVar v) in
+     Hmx.Forall ([v], Hmx.CBool true, Hmx_types.function_type lst lst)) ;
 
-    (Ident.intern "fst",
-     let x = Types.fresh_ty_var () in
-     let y = Types.fresh_ty_var () in
+    (Uid.intern "fst",
+     let x = Hmx_types.fresh_ty_var () in
+     let y = Hmx_types.fresh_ty_var () in
      let tup = Hmx.curry tuple [TVar x ; TVar y] in
-     Hmx.Forall ([x ; y], Hmx.CBool true, Types.function_type tup (Types.TVar x))) ;
+     Hmx.Forall ([x ; y], Hmx.CBool true, Hmx_types.function_type tup (Hmx_types.TVar x))) ;
 
-    (Ident.intern "snd",
-     let x = Types.fresh_ty_var () in
-     let y = Types.fresh_ty_var () in
+    (Uid.intern "snd",
+     let x = Hmx_types.fresh_ty_var () in
+     let y = Hmx_types.fresh_ty_var () in
      let tup = Hmx.curry tuple [TVar x ; TVar y] in
-     Hmx.Forall ([x ; y], Hmx.CBool true, Types.function_type tup (Types.TVar y))) ;
+     Hmx.Forall ([x ; y], Hmx.CBool true, Hmx_types.function_type tup (Hmx_types.TVar y))) ;
 
-    (Ident.intern "print_int",
-     Hmx.sch @@ Types.function_type Types.t_int Types.t_unit)
+    (Uid.intern "print_int",
+     Hmx.sch @@ Hmx_types.function_type Hmx_types.t_int Hmx_types.t_unit)
 ]
 
-let infer sess env ast =
-    let ty = TVar (Types.fresh_ty_var ()) in
+type env = (Uid.t * Hmx.ty_sch) list
+
+let infer (env : env) ast =
+    let ty = TVar (Hmx_types.fresh_ty_var ()) in
     let constr = Hmx.infer ast ty in
-    ignore @@ Solver.run sess env constr ;
+    ignore @@ Solver.run env constr ;
     ty
 
-let def_infer sess env pat expr =
-    let constr = Hmx.infer_def pat expr in
-    let env = Solver.run sess env constr in
+let def_infer env vbs =
+    let constr = Hmx.infer_def vbs in
+    let env = Solver.run env constr in
     env

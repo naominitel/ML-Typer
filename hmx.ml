@@ -1,19 +1,19 @@
 type ty_sch =
-    | Forall of Types.var list * constr * Types.ty
+    | Forall of Hmx_types.var list * constr * Hmx_types.ty
 
 and constr =
     | CBool of bool
-    | CApp of Ident.t * Types.ty list
+    | CApp of Uid.t * Hmx_types.ty list
     | CAnd of constr * constr
-    | CExists of Types.var list * constr
-    | CDef of Ident.t * ty_sch * constr
-    | CInstance of Ident.t * Codemap.span * Types.ty
+    | CExists of Hmx_types.var list * constr
+    | CDef of Uid.t * ty_sch * constr
+    | CInstance of Uid.t * Location.t * Hmx_types.ty
     | CDump
 
 let sch ty =
     Forall ([], CBool true, ty)
 
-let is_subtype = Ident.intern "="
+let is_subtype = Uid.intern "="
 
 let is_instance sch ty =
     let Forall(v, c, t) = sch in
@@ -27,14 +27,14 @@ let letin var sch constr =
     CDef (var, sch, constr)
 
 let curry f args =
-    List.fold_left (fun acc t -> Types.TApp (acc, t)) f args
+    List.fold_left (fun acc t -> Hmx_types.TApp (acc, t)) f args
 
 let tuple_type =
     let tuple_constructors = Hashtbl.create 100 in
     fun n ->
         try Hashtbl.find tuple_constructors n
         with Not_found -> begin
-            let id = Types.TConst (Ident.intern @@ Printf.sprintf "tuple%d" n) in
+            let id = Hmx_types.TConst (Uid.intern @@ Printf.sprintf "tuple%d" n) in
             Hashtbl.add tuple_constructors n id ; id
         end
 
@@ -42,77 +42,91 @@ let tuple_type =
    constraints terms accept some kind of pattern somehow, on the implies desugaring
    them during typing *)
 
-let rec infer term ty = match snd term with
-    | `Unit -> CApp (is_subtype, [Types.t_unit ; ty])
-    | `Cst _ -> CApp (is_subtype, [Types.t_int ; ty])
-    | `Var v -> CInstance (v, fst term, ty)
-    | `Tuple t ->
+open Parsetree
+exception Unimpl of Location.t * string
+
+let type_of_const cst = match cst with
+    | Pconst_integer _ -> Hmx_types.t_int
+    | Pconst_char    _ -> Hmx_types.t_char
+    | Pconst_string  _ -> Hmx_types.t_string
+    | Pconst_float   _ -> Hmx_types.t_float
+
+let infer_lid lid ty = match lid.Location.txt with
+    | Longident.Lident id -> CInstance (id, lid.Location.loc, ty)
+    | _ -> raise @@ Unimpl (lid.loc, "unsupported: module lookups")
+
+let rec infer term ty = match term.pexp_desc with
+    | Pexp_constant cst -> CApp (is_subtype, [type_of_const cst ; ty])
+    | Pexp_ident lid -> infer_lid lid ty
+    | Pexp_tuple [] -> CApp (is_subtype, [Hmx_types.t_unit ; ty])
+    | Pexp_tuple tup ->
         let (vars, types, constr, len) =
             List.fold_right
-                (fun e (vars, types, constr, i) ->
-                     let x = Types.fresh_ty_var () in
-                     (x :: vars, (Types.TVar x) :: types,
-                      CAnd (constr, infer e (Types.TVar x)), i + 1))
-                t ([], [], CBool true, 0)
+                (fun expr (vars, types, constr, i) ->
+                     let x = Hmx_types.fresh_ty_var () in
+                     (x :: vars, (Hmx_types.TVar x) :: types,
+                      CAnd (constr, infer expr (Hmx_types.TVar x)), i + 1))
+                tup ([], [], CBool true, 0)
         in
 
         let ctor = tuple_type len in
         CExists (vars, CAnd (constr, CApp (is_subtype, [ty ; curry ctor types])))
-    | `List l ->
-        let x = Types.fresh_ty_var () in
-        let constr =
-            List.fold_left
-                (fun constr e -> CAnd (constr, infer e (Types.TVar x)))
-                (CBool true) l
-        in
-
-        CExists ([x], CAnd (constr,
-                          CApp (is_subtype, [ty ; Types.TApp (Types.t_list, Types.TVar x)])))
-    | `If (ec, et, ef) ->
-        CAnd (infer ec (Types.t_bool), CAnd (infer et ty, infer ef ty))
-    | `Fun (x, t) ->
-        let x = match snd x with
-            | `PatVar v -> v
+    | Pexp_ifthenelse (ec, et, Some ef) ->
+        CAnd (infer ec (Hmx_types.t_bool), CAnd (infer et ty, infer ef ty))
+    | Pexp_ifthenelse (ec, et, None) ->
+        CAnd (infer ec (Hmx_types.t_bool), infer et ty)
+    | Pexp_fun (Asttypes.Nolabel, default, pattern, body) ->
+        let pvar = match pattern.ppat_desc with
+            | Ppat_var v -> v.Location.txt
             | _ -> failwith "patterns are not supported by HM(X)"
         in
-        let x1 = Types.fresh_ty_var () in
-        let x2 = Types.fresh_ty_var () in
-        let constr_body = infer t (Types.TVar x2) in
-        CExists ([x1 ; x2], CAnd (CDef (x, sch (Types.TVar x1), constr_body),
-                                  CApp (is_subtype, [Types.function_type (Types.TVar x1) (Types.TVar x2) ; ty])))
-    | `Let (isrec, z, e, t) -> infer_binding isrec z e (infer t ty)
-    | `Apply (f, a) ->
-        let x2 = Types.fresh_ty_var () in
-        CExists ([x2], CAnd (infer f (Types.function_type (Types.TVar x2) ty),
-                             infer a (Types.TVar x2)))
-    | `BinOp (op, e1, e2) ->
-        begin match op with
-            | `Plus | `Minus | `Mult | `Div ->
-                CAnd (CAnd (infer e1 Types.t_int, infer e2 Types.t_int),
-                      CApp (is_subtype, [ty ; Types.t_int]))
-            | `Eq ->
-                let x = Types.fresh_ty_var () in
-                CAnd (CAnd (infer e1 (Types.TVar x), infer e2 (Types.TVar x)),
-                      CApp (is_subtype, [ty ; Types.t_bool]))
-            | `Cons ->
-                let x = Types.fresh_ty_var () in
-                let t = Types.TApp (Types.t_list, Types.TVar x) in
-                CExists ([x], CAnd (CAnd (infer e1 (Types.TVar x), infer e2 t),
-                      CApp (is_subtype, [t ; ty])))
-        end
-    | `Match _ -> failwith "patterns are not supported by HM(X)"
+        let x1 = Hmx_types.fresh_ty_var () in
+        let x2 = Hmx_types.fresh_ty_var () in
+        let constr_body = infer body (Hmx_types.TVar x2) in
+        CExists ([x1 ; x2], CAnd (CDef (pvar, sch (Hmx_types.TVar x1), constr_body),
+                                  CApp (is_subtype,
+                                        [Hmx_types.function_type
+                                             (Hmx_types.TVar x1)
+                                             (Hmx_types.TVar x2) ;
+                                         ty])))
+    | Pexp_fun (_, _, _, _) -> raise @@ Unimpl (term.pexp_loc, "labeled args")
+    | Pexp_let (isrec, vbs, body) -> infer_binding isrec vbs (infer body ty)
+    | Pexp_apply (f, a) ->
+        let (evars, ftype, arg_constrs) =
+        List.fold_left
+            (fun (evars, ftype, arg_constrs) arg ->
+                 let arg_expr = match arg with
+                     | (Asttypes.Nolabel, arg) -> arg
+                     | _ -> raise @@ Unimpl (term.pexp_loc, "labeled args")
+                 in
+                let x2 = Hmx_types.fresh_ty_var () in
+                (x2 :: evars,
+                 Hmx_types.function_type (Hmx_types.TVar x2) ftype,
+                 CAnd (infer arg_expr (Hmx_types.TVar x2), arg_constrs)))
+            ([], ty, CBool true) a
+        in CExists (evars, CAnd (infer f ftype, arg_constrs))
+    | _ -> raise @@ Unimpl (term.pexp_loc, "expr kind")
 
-and infer_binding isrec pat expr constr =
-    let var = match snd pat with
-        | `PatVar v -> v
-        | _ -> failwith "patterns are not supported by HM(X)"
+and infer_binding isrec bindings constr =
+    let binding = match bindings with
+        | [] -> assert false
+        | [b] -> b
+        | b :: _ -> raise @@ Unimpl (b.pvb_loc, "let and")
     in
 
-    let x = Types.fresh_ty_var () in
+    let var = match binding.pvb_pat.ppat_desc with
+        | Ppat_var v -> v.Location.txt
+        | _ -> raise @@ Unimpl (binding.pvb_pat.ppat_loc, "patterns")
+    in
 
-    let inner = if isrec then
-        letin var (Forall ([], CBool true, Types.TVar x)) (infer expr (Types.TVar x))
-     else infer expr (Types.TVar x)
-    in letin var (Forall ([x], inner, Types.TVar x)) constr
+    let x = Hmx_types.fresh_ty_var () in
 
-let infer_def p e = infer_binding true p e CDump
+    let inner = match isrec with
+        | Recursive ->
+            letin var (Forall ([], CBool true, Hmx_types.TVar x))
+                  (infer binding.pvb_expr (Hmx_types.TVar x))
+        | Nonrecursive -> infer binding.pvb_expr (Hmx_types.TVar x)
+    in letin var (Forall ([x], inner, Hmx_types.TVar x)) constr
+
+let infer_def vbs =
+    infer_binding Asttypes.Nonrecursive vbs CDump

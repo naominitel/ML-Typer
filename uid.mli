@@ -1,4 +1,4 @@
-type t
+type t = string
 
 val show : t -> string
 val eq : t -> t -> bool
