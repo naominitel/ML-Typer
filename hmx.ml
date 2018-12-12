@@ -45,6 +45,16 @@ let tuple_type =
 open Parsetree
 exception Unimpl of Location.t * string
 
+let ctor1 f = fun arg ty loc ->
+    match arg with
+        | Some arg -> f arg ty loc
+        | None -> failwith "bad arity"
+
+let ctor0 f = fun arg ty loc ->
+    match arg with
+        | Some arg -> failwith "bad arity"
+        | None -> f ty loc
+
 let type_of_const cst = match cst with
     | Pconst_integer _ -> Hmx_types.t_int
     | Pconst_char    _ -> Hmx_types.t_char
@@ -55,7 +65,12 @@ let infer_lid lid ty = match lid.Location.txt with
     | Longident.Lident id -> CInstance (id, lid.Location.loc, ty)
     | _ -> raise @@ Unimpl (lid.loc, "unsupported: module lookups")
 
+let ctor_of lid ctors = match lid.Location.txt with
+    | Longident.Lident id -> List.assoc id ctors
+    | _ -> raise @@ Unimpl (lid.loc, "unsupported: module lookups")
+
 let rec infer term ty = match term.pexp_desc with
+    | Pexp_construct (lid, args) -> ctor_of lid (init_ctor_env ()) args ty lid.Location.loc
     | Pexp_constant cst -> CApp (is_subtype, [type_of_const cst ; ty])
     | Pexp_ident lid -> infer_lid lid ty
     | Pexp_tuple [] -> CApp (is_subtype, [Hmx_types.t_unit ; ty])
@@ -127,6 +142,18 @@ and infer_binding isrec bindings constr =
                   (infer binding.pvb_expr (Hmx_types.TVar x))
         | Nonrecursive -> infer binding.pvb_expr (Hmx_types.TVar x)
     in letin var (Forall ([x], inner, Hmx_types.TVar x)) constr
+
+and init_ctor_env = fun () -> [
+    (Uid.intern "::",
+     ctor1 @@
+     (fun arg ty loc ->
+          let x = Hmx_types.fresh_ty_var () in
+          let tup = Hmx_types.TApp (tuple_type 2, [TVar x ; TApp (Hmx_types.t_list, [TVar x])]) in
+          CAnd (infer arg tup, CApp (is_subtype, [TApp (Hmx_types.t_list, [TVar x]) ; ty])))) ;
+
+    (Uid.intern "[]",
+     ctor0 @@ fun ty loc -> CInstance ("[]", loc, ty))
+]
 
 let infer_def isrec vbs =
     infer_binding isrec vbs CDump

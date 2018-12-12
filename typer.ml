@@ -30,7 +30,20 @@ let init_ty_env = [
      Hmx.Forall ([x ; y], Hmx.CBool true, Hmx_types.function_type tup (Hmx_types.TVar y))) ;
 
     (Uid.intern "print_int",
-     Hmx.sch @@ Hmx_types.function_type Hmx_types.t_int Hmx_types.t_unit)
+     Hmx.sch @@ Hmx_types.function_type Hmx_types.t_int Hmx_types.t_unit) ;
+
+    (Uid.intern "[]",
+     let x = Hmx_types.fresh_ty_var () in
+     Hmx.Forall ([x], Hmx.CBool true, (TApp (Hmx_types.t_list, [TVar x])))) ;
+
+    (Uid.intern "==",
+     let x = Hmx_types.fresh_ty_var () in
+     Hmx.Forall ([x], Hmx.CBool true,
+                 Hmx_types.function_type
+                     (Hmx_types.TVar x)
+                     (Hmx_types.function_type
+                          (Hmx_types.TVar x)
+                          Hmx_types.t_bool))) ;
 ]
 
 type env = (Uid.t * Hmx.ty_sch) list
