@@ -93,8 +93,8 @@ let rec infer term ty = match term.pexp_desc with
     | Pexp_let (isrec, vbs, body) -> infer_binding isrec vbs (infer body ty)
     | Pexp_apply (f, a) ->
         let (evars, ftype, arg_constrs) =
-        List.fold_left
-            (fun (evars, ftype, arg_constrs) arg ->
+        List.fold_right
+            (fun arg (evars, ftype, arg_constrs) ->
                  let arg_expr = match arg with
                      | (Asttypes.Nolabel, arg) -> arg
                      | _ -> raise @@ Unimpl (term.pexp_loc, "labeled args")
@@ -103,7 +103,7 @@ let rec infer term ty = match term.pexp_desc with
                 (x2 :: evars,
                  Hmx_types.function_type (Hmx_types.TVar x2) ftype,
                  CAnd (infer arg_expr (Hmx_types.TVar x2), arg_constrs)))
-            ([], ty, CBool true) a
+            a ([], ty, CBool true)
         in CExists (evars, CAnd (infer f ftype, arg_constrs))
     | _ -> raise @@ Unimpl (term.pexp_loc, "expr kind")
 
