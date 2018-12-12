@@ -3,7 +3,7 @@
 type ty =
     | TConst of string
     | TVar of var
-    | TApp of ty * ty
+    | TApp of ty * ty list
 
 and var = var_descr Union_find.point
 
@@ -17,7 +17,7 @@ and var_descr = {
 let arrow = TConst (Uid.intern "->")
 
 let function_type t1 t2 =
-    TApp ((TApp (arrow, t1)), t2)
+    TApp (arrow, [t1 ; t2])
 
 let next = ref 0
 let next_mark () = ref ()

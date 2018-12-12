@@ -21,19 +21,39 @@ let show_var (vars, next) var =
         incr next ; vars := VMap.add var name !vars ;
         name
 
-let rec show_ty var_printer vl = function
-    | TConst s -> Uid.show s
-    | TVar s -> show_tvar var_printer vl s
-    | TApp (TApp (s1, s2), s3) when s1 = arrow ->
-        let s2 = show_ty var_printer vl s2 in
-        let s3 = show_ty var_printer vl s3 in
-        Printf.sprintf "(%s -> %s)" s2 s3
-    | TApp (s1, s2) ->
-        let s1 = show_ty var_printer vl s1 in
-        let s2 = show_ty var_printer vl s2 in
-        Printf.sprintf "(%s %s)" s1 s2
+let rec show_list printer sep = function
+    | [] -> ""
+    | [x] -> printer x
+    | x :: tl ->
+        Printf.sprintf "%s%s%s"
+            (printer x) sep
+            (show_list printer sep tl)
 
-and show_tvar var_printer vl var =
+let rec show_ty var_printer vl = function
+    | TVar s -> show_tvar var_printer vl show_ty s
+    | TApp (s1, [s2 ; s3]) when s1 = arrow ->
+        let s2 = show_ty2 var_printer vl s2 in
+        let s3 = show_ty var_printer vl s3 in
+        Printf.sprintf "%s -> %s" s2 s3
+    | t -> show_ty2 var_printer vl t
+and show_ty2 var_printer vl = function
+    | TVar s -> show_tvar var_printer vl show_ty2 s
+    | TApp (s1, [s2]) when s1 != arrow ->
+        let s1 = show_ty3 var_printer vl s1 in
+        let s2 = show_ty2 var_printer vl s2 in
+        Printf.sprintf "%s %s" s2 s1
+    | TApp (s1, s) when s1 != arrow && s1 != Hmx.tuple_type (List.length s) ->
+        let s1 = show_ty3 var_printer vl s1 in
+        Printf.sprintf "(%s) %s" (show_list (show_ty var_printer vl) ", " s) s1
+    | t -> show_ty3 var_printer vl t
+and show_ty3 var_printer vl = function
+    | TConst s -> Uid.show s
+    | TVar s -> show_tvar var_printer vl show_ty3 s
+    | TApp (s1, s) when s1 = Hmx.tuple_type (List.length s) ->
+        Printf.sprintf "(%s)" @@ show_list (show_ty var_printer vl) ", " s
+    | t -> Printf.sprintf "(%s)" @@ show_ty var_printer vl t
+
+and show_tvar var_printer vl show_ty var =
     let v = Union_find.find var in
     begin match v.structure with
         | Some s ->

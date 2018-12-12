@@ -70,7 +70,7 @@ let rec infer term ty = match term.pexp_desc with
         in
 
         let ctor = tuple_type len in
-        CExists (vars, CAnd (constr, CApp (is_subtype, [ty ; curry ctor types])))
+        CExists (vars, CAnd (constr, CApp (is_subtype, [ty ; TApp (ctor, types)])))
     | Pexp_ifthenelse (ec, et, Some ef) ->
         CAnd (infer ec (Hmx_types.t_bool), CAnd (infer et ty, infer ef ty))
     | Pexp_ifthenelse (ec, et, None) ->

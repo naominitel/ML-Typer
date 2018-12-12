@@ -19,7 +19,7 @@ let chop pool term =
 let alpha_conv term r =
     let mark = Hmx_types.next_mark () in
     let rec iter term = match term with (*  *)
-        | TApp (t1, t2) -> TApp (iter t1, iter t2)
+        | TApp (t1, t) -> TApp (iter t1, List.map iter t)
         | TVar var ->
             let var = Union_find.find var in
             if var.mark == mark then
@@ -71,7 +71,9 @@ and unify_terms pool t1 t2 =
         | (TVar v1, TVar v2) -> unify pool v1 v2
         | (TVar v, t)
         | (t, TVar v) -> unify pool v (chop pool t)
-        | (TApp (t1, v1), TApp(t2, v2)) -> unify_terms pool t1 t2 ; unify_terms pool v1 v2
+        | (TApp (t1, v1), TApp(t2, v2)) ->
+            unify_terms pool t1 t2 ;
+            List.iter2 (unify_terms pool) v1 v2
         | (TConst x, TConst y) when x = y -> ()
         | _ -> failwith @@
                    (Printf.sprintf "impossible to unify %s with %s"
@@ -103,7 +105,7 @@ let free_vars_of term =
                     | Some s -> iter s
                     | None -> [v]
             end
-        | TApp (t1, t2) -> union (iter t1) (iter t2)
+        | TApp (t1, t2) -> union (iter t1) (List.fold_left union [] @@ List.map iter t2)
     in iter term
 
 let rec solve constr pool env =
