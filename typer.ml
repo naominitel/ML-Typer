@@ -41,7 +41,7 @@ let infer (env : env) ast =
     ignore @@ Solver.run env constr ;
     ty
 
-let def_infer env vbs =
-    let constr = Hmx.infer_def vbs in
+let def_infer isrec env vbs =
+    let constr = Hmx.infer_def isrec vbs in
     let env = Solver.run env constr in
     env

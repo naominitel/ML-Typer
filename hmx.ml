@@ -128,5 +128,5 @@ and infer_binding isrec bindings constr =
         | Nonrecursive -> infer binding.pvb_expr (Hmx_types.TVar x)
     in letin var (Forall ([x], inner, Hmx_types.TVar x)) constr
 
-let infer_def vbs =
-    infer_binding Asttypes.Nonrecursive vbs CDump
+let infer_def isrec vbs =
+    infer_binding isrec vbs CDump
