@@ -95,14 +95,12 @@ let rec infer term ty = match term.pexp_desc with
             | Ppat_var v -> v.Location.txt
             | _ -> failwith "patterns are not supported by HM(X)"
         in
-        let x1 = Hmx_types.fresh_ty_var () in
-        let x2 = Hmx_types.fresh_ty_var () in
-        let constr_body = infer body (Hmx_types.TVar x2) in
-        CExists ([x1 ; x2], CAnd (CDef (pvar, sch (Hmx_types.TVar x1), constr_body),
+        let constr_body = infer body (Hmx_types.t_dyn) in
+        CExists ([], CAnd (CDef (pvar, sch (Hmx_types.t_dyn), constr_body),
                                   CApp (is_subtype,
                                         [Hmx_types.function_type
-                                             (Hmx_types.TVar x1)
-                                             (Hmx_types.TVar x2) ;
+                                             (Hmx_types.t_dyn)
+                                             (Hmx_types.t_dyn) ;
                                          ty])))
     | Pexp_fun (_, _, _, _) -> raise @@ Unimpl (term.pexp_loc, "labeled args")
     | Pexp_let (isrec, vbs, body) -> infer_binding isrec vbs (infer body ty)

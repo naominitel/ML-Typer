@@ -30,6 +30,7 @@ let fresh_ty_var () =
         mark = next_mark ()
     }
 
+let t_dyn    = TConst (Uid.intern "?")
 let t_int    = TConst (Uid.intern "int")
 let t_char   = TConst (Uid.intern "char")
 let t_string = TConst (Uid.intern "string")

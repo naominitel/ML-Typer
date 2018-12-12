@@ -75,6 +75,8 @@ and unify_terms pool t1 t2 =
             unify_terms pool t1 t2 ;
             List.iter2 (unify_terms pool) v1 v2
         | (TConst x, TConst y) when x = y -> ()
+        | (TConst x, _) when x = "?" -> ()
+        | (_, TConst y) when y = "?" -> ()
         | _ -> failwith @@
                    (Printf.sprintf "impossible to unify %s with %s"
                         (show_sch @@ Hmx.sch t1) (show_sch @@ Hmx.sch t2))
