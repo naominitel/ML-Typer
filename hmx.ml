@@ -45,12 +45,12 @@ let tuple_type =
 open Parsetree
 exception Unimpl of Location.t * string
 
-let ctor1 f = fun arg ty loc ->
+let ctor1 f = fun tbl arg ty loc ->
     match arg with
-        | Some arg -> f arg ty loc
+        | Some arg -> f tbl arg ty loc
         | None -> failwith "bad arity"
 
-let ctor0 f = fun arg ty loc ->
+let ctor0 f = fun _ arg ty loc ->
     match arg with
         | Some arg -> failwith "bad arity"
         | None -> f ty loc
@@ -69,8 +69,8 @@ let ctor_of lid ctors = match lid.Location.txt with
     | Longident.Lident id -> List.assoc id ctors
     | _ -> raise @@ Unimpl (lid.loc, "unsupported: module lookups")
 
-let rec infer term ty = match term.pexp_desc with
-    | Pexp_construct (lid, args) -> ctor_of lid (init_ctor_env ()) args ty lid.Location.loc
+let rec infer tbl term ty = let infer = (infer tbl) in match term.pexp_desc with
+    | Pexp_construct (lid, args) -> ctor_of lid (init_ctor_env ()) tbl args ty lid.Location.loc
     | Pexp_constant cst -> CApp (is_subtype, [type_of_const cst ; ty])
     | Pexp_ident lid -> infer_lid lid ty
     | Pexp_tuple [] -> CApp (is_subtype, [Hmx_types.t_unit ; ty])
@@ -95,15 +95,20 @@ let rec infer term ty = match term.pexp_desc with
             | Ppat_var v -> v.Location.txt
             | _ -> failwith "patterns are not supported by HM(X)"
         in
-        let constr_body = infer body (Hmx_types.t_dyn) in
+        let arity = Arity.ASTMap.find tbl body in
+        let ret_ty = ref Hmx_types.t_dyn in
+        for i = 1 to arity do
+            ret_ty := Hmx_types.(function_type t_dyn !ret_ty)
+        done ;
+        let constr_body = infer body !ret_ty in
         CExists ([], CAnd (CDef (pvar, sch (Hmx_types.t_dyn), constr_body),
-                                  CApp (is_subtype,
-                                        [Hmx_types.function_type
-                                             (Hmx_types.t_dyn)
-                                             (Hmx_types.t_dyn) ;
-                                         ty])))
+                           CApp (is_subtype,
+                                 [Hmx_types.function_type
+                                      (Hmx_types.t_dyn)
+                                      !ret_ty ;
+                                  ty])))
     | Pexp_fun (_, _, _, _) -> raise @@ Unimpl (term.pexp_loc, "labeled args")
-    | Pexp_let (isrec, vbs, body) -> infer_binding isrec vbs (infer body ty)
+    | Pexp_let (isrec, vbs, body) -> infer_binding tbl isrec vbs (infer body ty)
     | Pexp_apply (f, a) ->
         let (evars, ftype, arg_constrs) =
         List.fold_right
@@ -120,7 +125,7 @@ let rec infer term ty = match term.pexp_desc with
         in CExists (evars, CAnd (infer f ftype, arg_constrs))
     | _ -> raise @@ Unimpl (term.pexp_loc, "expr kind")
 
-and infer_binding isrec bindings constr =
+and infer_binding tbl isrec bindings constr =
     let binding = match bindings with
         | [] -> assert false
         | [b] -> b
@@ -137,21 +142,21 @@ and infer_binding isrec bindings constr =
     let inner = match isrec with
         | Recursive ->
             letin var (Forall ([], CBool true, Hmx_types.TVar x))
-                  (infer binding.pvb_expr (Hmx_types.TVar x))
-        | Nonrecursive -> infer binding.pvb_expr (Hmx_types.TVar x)
+                  (infer tbl binding.pvb_expr (Hmx_types.TVar x))
+        | Nonrecursive -> infer tbl binding.pvb_expr (Hmx_types.TVar x)
     in letin var (Forall ([x], inner, Hmx_types.TVar x)) constr
 
 and init_ctor_env = fun () -> [
     (Uid.intern "::",
      ctor1 @@
-     (fun arg ty loc ->
+     (fun tbl arg ty loc ->
           let x = Hmx_types.fresh_ty_var () in
           let tup = Hmx_types.TApp (tuple_type 2, [TVar x ; TApp (Hmx_types.t_list, [TVar x])]) in
-          CAnd (infer arg tup, CApp (is_subtype, [TApp (Hmx_types.t_list, [TVar x]) ; ty])))) ;
+          CAnd (infer tbl arg tup, CApp (is_subtype, [TApp (Hmx_types.t_list, [TVar x]) ; ty])))) ;
 
     (Uid.intern "[]",
      ctor0 @@ fun ty loc -> CInstance ("[]", loc, ty))
 ]
 
-let infer_def isrec vbs =
-    infer_binding isrec vbs CDump
+let infer_def tbl isrec vbs =
+    infer_binding tbl isrec vbs CDump

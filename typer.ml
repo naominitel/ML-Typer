@@ -49,12 +49,18 @@ let init_ty_env = [
 type env = (Uid.t * Hmx.ty_sch) list
 
 let infer (env : env) ast =
+    let tbl = Arity.run ast in
     let ty = TVar (Hmx_types.fresh_ty_var ()) in
-    let constr = Hmx.infer ast ty in
+    let constr = Hmx.infer tbl ast ty in
     ignore @@ Solver.run env constr ;
     ty
 
 let def_infer isrec env vbs =
-    let constr = Hmx.infer_def isrec vbs in
+    let tbl = match vbs with
+        | [] -> assert false
+        | [b] -> Arity.run b.Parsetree.pvb_expr
+        | b :: _ -> raise @@ Hmx.Unimpl (b.Parsetree.pvb_loc, "let and")
+    in
+    let constr = Hmx.infer_def tbl isrec vbs in
     let env = Solver.run env constr in
     env
