@@ -58,11 +58,24 @@ let rec unify pool t1 t2 =
     if (find t1 == find t2) then ()
     else match ((find t1).structure, (find t2).structure) with
         | None, None ->
-            union (fun x y -> if x.Hmx_types.rank < y.Hmx_types.rank then x else y) t1 t2
+            union
+                (fun x y ->
+                     if x.Hmx_types.rank < y.Hmx_types.rank then x else y)
+                t1 t2
         | (Some r1, None)    ->
-            union (fun x y -> if x.Hmx_types.rank < y.Hmx_types.rank then x else {y with structure = x.structure}) t1 t2
+            union
+                (fun x y ->
+                     if x.Hmx_types.rank < y.Hmx_types.rank
+                     then x
+                     else {y with structure = x.structure})
+                t1 t2
         | (None, Some r2)    ->
-           union (fun x y -> if x.Hmx_types.rank < y.Hmx_types.rank then {x with structure = y.structure} else y) t1 t2
+            union
+                (fun x y ->
+                     if x.Hmx_types.rank < y.Hmx_types.rank
+                     then {x with structure = y.structure}
+                     else y)
+                t1 t2
         | (Some r1, Some r2) ->
             union (fun x y -> if x.Hmx_types.rank < y.Hmx_types.rank then x else y) t1 t2 ; unify_terms pool r1 r2
 
